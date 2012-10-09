@@ -69,12 +69,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\Common-MP-TVE3\SolutionInfo.cs">
+    <Compile Include="..\..\..\..\..\Common-MP-TVE3\SolutionInfo.cs">
       <Link>SolutionInfo.cs</Link>
     </Compile>
-    <Compile Include="Enums\ChannelState.cs" />
-    <Compile Include="Enums\TvResult.cs" />
-    <Compile Include="Enums\TvStoppedReason.cs" />
+    <Compile Include="..\TvService.Interfaces\Enums\ChannelState.cs" />
+    <Compile Include="..\TvService.Interfaces\Enums\TvResult.cs" />
+    <Compile Include="..\TvService.Interfaces\Enums\TvStoppedReason.cs" />
     <Compile Include="Interfaces\IUser.cs" />
     <Compile Include="RemoteControl.cs" />
     <Compile Include="TvServer.cs" />

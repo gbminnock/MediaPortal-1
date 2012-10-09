@@ -72,23 +72,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\Common-MP-TVE3\SolutionInfo.cs">
-      <Link>SolutionInfo.cs</Link>
-    </Compile>
-    <Compile Include="CanceledSchedule.cs" />
-    <Compile Include="Card.cs" />
-    <Compile Include="Channel.cs" />
-    <Compile Include="ChannelGroup.cs" />
-    <Compile Include="ChannelLinkageMap.cs" />
-    <Compile Include="ChannelMap.cs" />
-    <Compile Include="Conflict.cs" />
+    <Compile Include="Entities\CanceledSchedule.cs" />
+    <Compile Include="Entities\Card.cs" />
+    <Compile Include="Entities\CardGroup.cs" />
+    <Compile Include="Entities\CardGroupMap.cs" />
+    <Compile Include="Entities\Channel.cs" />
+    <Compile Include="Entities\ChannelGroup.cs" />
+    <Compile Include="Entities\ChannelLinkageMap.cs" />
+    <Compile Include="Entities\ChannelMap.cs" />
+    <Compile Include="Entities\Conflict.cs" />
+    <Compile Include="Entities\DiSEqCMotor.cs" />
+    <Compile Include="Entities\Recording.cs" />
+    <Compile Include="Entities\Satellite.cs" />
+    <Compile Include="Entities\Schedule.cs" />
+    <Compile Include="Entities\Setting.cs" />
+    <Compile Include="Entities\SoftwareEncoder.cs" />
+    <Compile Include="Entities\Timespan.cs" />
+    <Compile Include="Entities\TuningDetail.cs" />
+    <Compile Include="Entities\TvMovieMapping.cs" />
     <Compile Include="LnbType.cs" />
     <Compile Include="PendingDeletion.cs" />
     <Compile Include="EpisodeFormatter.cs" />
-    <Compile Include="SoftwareEncoder.cs" />
     <Compile Include="RadioGroupMap.cs" />
     <Compile Include="RadioChannelGroup.cs" />
-    <Compile Include="DiSEqCMotor.cs" />
     <Compile Include="Favorite.cs" />
     <Compile Include="GroupMap.cs" />
     <Compile Include="History.cs" />
@@ -97,18 +103,9 @@
     <Compile Include="PersonalTVGuideMap.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Recording.cs" />
-    <Compile Include="Satellite.cs" />
-    <Compile Include="Schedule.cs" />
     <Compile Include="Server.cs" />
-    <Compile Include="Setting.cs" />
-    <Compile Include="Timespan.cs" />
-    <Compile Include="TuningDetail.cs" />
     <Compile Include="WeekEndTool.cs" />
-    <Compile Include="TvMovieMapping.cs" />
     <Compile Include="Version.cs" />
-    <Compile Include="CardGroup.cs" />
-    <Compile Include="CardGroupMap.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TvLibrary.Interfaces\TvLibrary.Interfaces.csproj">

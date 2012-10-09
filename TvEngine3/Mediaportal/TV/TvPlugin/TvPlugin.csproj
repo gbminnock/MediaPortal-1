@@ -89,23 +89,23 @@
     </Reference>
     <Reference Include="Gentle.Common, Version=1.2.9.1285, Culture=neutral, PublicKeyToken=80b5de62e27be49b">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\TVDatabase\references\Gentle.Common.dll</HintPath>
+      <HintPath>..\Server\TVDatabase\references\Gentle.Common.dll</HintPath>
     </Reference>
     <Reference Include="Gentle.Framework, Version=1.2.9.1286, Culture=neutral, PublicKeyToken=80b5de62e27be49b">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\TVDatabase\references\Gentle.Framework.dll</HintPath>
+      <HintPath>..\Server\TVDatabase\references\Gentle.Framework.dll</HintPath>
     </Reference>
     <Reference Include="Gentle.Provider.MySQL, Version=1.2.9.1288, Culture=neutral">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\TVDatabase\references\Gentle.Provider.MySQL.dll</HintPath>
+      <HintPath>..\Server\TVDatabase\references\Gentle.Provider.MySQL.dll</HintPath>
     </Reference>
     <Reference Include="Gentle.Provider.SQLServer, Version=1.2.9.1289, Culture=neutral, PublicKeyToken=80b5de62e27be49b">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\TVDatabase\references\Gentle.Provider.SQLServer.dll</HintPath>
+      <HintPath>..\Server\TVDatabase\references\Gentle.Provider.SQLServer.dll</HintPath>
     </Reference>
     <Reference Include="log4net, Version=1.2.9.0, Culture=neutral, PublicKeyToken=b32731d11ce58905">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\TVDatabase\references\log4net.dll</HintPath>
+      <HintPath>..\Server\TVDatabase\references\log4net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -134,18 +134,33 @@
     <Compile Include="..\..\..\..\Common-MP-TVE3\SolutionInfo.cs">
       <Link>SolutionInfo.cs</Link>
     </Compile>
-    <Compile Include="GuideBase.cs" />
-    <Compile Include="RadioSearch.cs" />
-    <Compile Include="Helper\BitHelper.cs" />
-    <Compile Include="RadioRecorded.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Radio.cs" />
-    <Compile Include="RadioGuide.cs" />
-    <Compile Include="RadioGuideBase.cs" />
-    <Compile Include="RadioSetupForm.cs">
+    <Compile Include="EPG\GuideBase.cs" />
+    <Compile Include="EPG\RadioGuide.cs" />
+    <Compile Include="EPG\RadioGuideBase.cs" />
+    <Compile Include="EPG\TVGuide.cs" />
+    <Compile Include="EPG\TvGuideBase.cs" />
+    <Compile Include="Helper\TVUtil.cs" />
+    <Compile Include="PluginSetup\TvSetupAudioLanguageForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="RadioSetupForm.Designer.cs">
+    <Compile Include="PluginSetup\TvSetupAudioLanguageForm.Designer.cs">
+      <DependentUpon>TvSetupAudioLanguageForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PluginSetup\TvSetupForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PluginSetup\TvSetupForm.Designer.cs">
+      <DependentUpon>TvSetupForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Helper\BitHelper.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Radio\Radio.cs" />
+    <Compile Include="Radio\RadioRecorded.cs" />
+    <Compile Include="Radio\RadioSearch.cs" />
+    <Compile Include="Radio\RadioSetupForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Radio\RadioSetupForm.Designer.cs">
       <DependentUpon>RadioSetupForm.cs</DependentUpon>
     </Compile>
     <Compile Include="teletext\Hamming.cs" />
@@ -159,8 +174,6 @@
     <Compile Include="TvCropSettings.cs" />
     <Compile Include="TvEpgSettings.cs" />
     <Compile Include="TvFullScreen.cs" />
-    <Compile Include="TVGuide.cs" />
-    <Compile Include="TvGuideBase.cs" />
     <Compile Include="TVHome.cs" />
     <Compile Include="TVHomeNavigator.cs" />
     <Compile Include="TvMiniGuide.cs" />
@@ -180,21 +193,8 @@
     <Compile Include="teletext\TvTeletext.cs" />
     <Compile Include="TvRecordingSettings.cs" />
     <Compile Include="TvSetup.cs" />
-    <Compile Include="TvSetupAudioLanguageForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="TvSetupAudioLanguageForm.Designer.cs">
-      <DependentUpon>TvSetupAudioLanguageForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="TvSetupForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="TvSetupForm.Designer.cs">
-      <DependentUpon>TvSetupForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="TvTimeShiftPositionWatcher.cs" />
     <Compile Include="TVTuningDetails.cs" />
-    <Compile Include="TVUtil.cs" />
     <Compile Include="TVZapOSD.cs" />
     <Compile Include="WakeOnLanManager.cs" />
   </ItemGroup>
@@ -207,51 +207,36 @@
       <Project>{CE009BFA-5EF6-4153-B2A1-2FA79698A9AE}</Project>
       <Name>DirectShowLib</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\TvControl\TvControl.csproj">
+    <ProjectReference Include="..\Server\TvControl\TvControl.csproj">
       <Project>{0DB878C6-1B68-4DC5-B6EF-564B7C08486F}</Project>
       <Name>TvControl</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\TVDatabase\TvBusinessLayer\TvBusinessLayer.csproj">
+    <ProjectReference Include="..\Server\TVDatabase\TvBusinessLayer\TvBusinessLayer.csproj">
       <Project>{58C35C9D-F18D-40F2-8024-24E50D01E9C5}</Project>
       <Name>TvBusinessLayer</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\TVDatabase\TVDatabase.csproj">
+    <ProjectReference Include="..\Server\TVDatabase\TVDatabase.csproj">
       <Project>{0FD8DEAE-37A4-49CC-A7BE-E86E0E0D85BD}</Project>
       <Name>TVDatabase</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\TvLibrary.Interfaces\TvLibrary.Interfaces.csproj">
+    <ProjectReference Include="..\Server\TvLibrary.Interfaces\TvLibrary.Interfaces.csproj">
       <Project>{AE752FB4-7450-4150-9BAD-19EFA9D2AC37}</Project>
       <Name>TvLibrary.Interfaces</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="TvSetupAudioLanguageForm.resx">
-      <SubType>Designer</SubType>
+    <EmbeddedResource Include="PluginSetup\TvSetupAudioLanguageForm.resx">
       <DependentUpon>TvSetupAudioLanguageForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="TvSetupForm.resx">
-      <SubType>Designer</SubType>
+    <EmbeddedResource Include="PluginSetup\TvSetupForm.resx">
       <DependentUpon>TvSetupForm.cs</DependentUpon>
     </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="RadioSetupForm.resx">
-      <SubType>Designer</SubType>
+    <EmbeddedResource Include="Radio\RadioSetupForm.resx">
       <DependentUpon>RadioSetupForm.cs</DependentUpon>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="teletext\LogoPage" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="TVPlugin.gif" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="TVPluginDisabled.gif" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Radio.gif" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Radio_disabled.gif" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
@@ -269,6 +254,12 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\Radio.gif" />
+    <Content Include="Resources\Radio_disabled.gif" />
+    <Content Include="Resources\TVPlugin.gif" />
+    <Content Include="Resources\TVPluginDisabled.gif" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

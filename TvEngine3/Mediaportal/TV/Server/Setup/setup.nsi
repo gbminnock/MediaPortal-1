@@ -427,7 +427,7 @@ ${MementoSection} "MediaPortal TV Server" SecServer
   File "${git_Common_MP_TVE3}\Common.Utils\bin\${BUILD_TYPE}\Common.Utils.dll"
   File "${git_TVServer}\Server\Plugins\PluginBase\bin\${BUILD_TYPE}\PluginBase.dll"
   File "${git_Common_MP_TVE3}\PowerScheduler.Interfaces\bin\${BUILD_TYPE}\PowerScheduler.Interfaces.dll"
-  File "${git_TVServer}\Server\Plugins\ServerBlaster\ServerBlaster (Learn)\bin\${BUILD_TYPE}\Blaster.exe"
+  File "${git_TVServer}\Server\Plugins\ServerBlaster\ServerBlaster.Learn\bin\${BUILD_TYPE}\Blaster.exe"
   File "${git_TVServer}\Server\SetupTv\bin\${BUILD_TYPE}\SetupTv.exe"
   File "${git_TVServer}\Server\SetupTv\bin\${BUILD_TYPE}\SetupTv.exe.config"
   File "${git_TVServer}\Server\TvControl\bin\${BUILD_TYPE}\TvControl.dll"

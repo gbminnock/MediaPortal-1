@@ -322,7 +322,7 @@ namespace WindowPlugins.GUISettings.TV
 
     private void OnVideoCodec()
     {
-      ArrayList availableVideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubTypeEx.MPEG2);
+      ArrayList availableVideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubType.Mpeg2Video);
 
       while (availableVideoFilters.Contains("CyberLink MPEG Muxer"))
       {
@@ -424,8 +424,8 @@ namespace WindowPlugins.GUISettings.TV
 
     private void OnVC1()
     {
-      ArrayList availableVC1VideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubType.VC1);
-      ArrayList availableVC1CyberlinkVideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubType.CyberlinkVC1);
+      ArrayList availableVC1VideoFilters = FilterHelper.GetFilters(MediaType.Video, MpMediaSubType.VC1);
+      ArrayList availableVC1CyberlinkVideoFilters = FilterHelper.GetFilters(MediaType.Video, MpMediaSubType.CyberlinkVC1);
       availableVC1VideoFilters.AddRange(availableVC1CyberlinkVideoFilters.ToArray());
       availableVC1VideoFilters.Sort();
 

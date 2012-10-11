@@ -289,7 +289,7 @@ namespace MediaPortal.Configuration
           splashScreen.SetInformation("Adding audio filters...");
         }
 
-        ArrayList availableAACAudioFilters = FilterHelper.GetFilters(MediaType.Audio, MediaSubType.LATMAAC);
+        ArrayList availableAACAudioFilters = FilterHelper.GetFilters(MediaType.Audio, MpMediaSubType.LATMAAC);
         if (availableAACAudioFilters.Count > 0)
         {
           foreach (string filter in availableAACAudioFilters)
@@ -332,7 +332,7 @@ namespace MediaPortal.Configuration
         }
       }
       //Look for Video Decoders, if exist assume decoders are installed & present config option
-      ArrayList availableVideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubTypeEx.MPEG2);
+      ArrayList availableVideoFilters = FilterHelper.GetFilters(MediaType.Video, MediaSubType.Mpeg2Video);
       if (availableVideoFilters.Count > 0)
       {
         if (splashScreen != null)
@@ -348,7 +348,7 @@ namespace MediaPortal.Configuration
             AddSection(new ConfigPage(filterSection, pdvdConfig, true));
           }
           // if we do not have the audio codec installed we want to see the video config nevertheless
-          if (filter.Contains("CyberLink Video Decoder (PDVD10)") || filter.Contains("CyberLink Video Decoder (PDVD11)"))
+          if (filter.StartsWith("CyberLink Video Decoder (PDVD"))
           {
             FiltersPowerDVDDecoder10 pdvdConfig10 = new FiltersPowerDVDDecoder10();
             AddSection(new ConfigPage(filterSection, pdvdConfig10, true));

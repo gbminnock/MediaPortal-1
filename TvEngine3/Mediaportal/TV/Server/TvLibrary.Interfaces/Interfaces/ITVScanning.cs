@@ -28,11 +28,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
   public interface ITVScanning
   {
     /// <summary>
-    /// Disposes this instance.
-    /// </summary>
-    void Dispose();
-
-    /// <summary>
     /// resets the scanner
     /// </summary>
     void Reset();
@@ -53,10 +48,5 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     /// <param name="settings">ScanParameters to use while tuning</param>
     /// <returns></returns>
     List<IChannel> ScanNIT(IChannel channel, ScanParameters settings);
-
-    /// <summary>
-    /// returns the tv card used 
-    /// </summary>
-    ITVCard TvCard { get; }
   }
 }

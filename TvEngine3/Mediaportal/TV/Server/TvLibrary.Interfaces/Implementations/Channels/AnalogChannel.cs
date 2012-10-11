@@ -36,7 +36,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #region enums
 
     /// <summary>
-    /// Video input type
+    /// Video input type.
     /// </summary>
     public enum VideoInputType
     {
@@ -107,7 +107,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// Audio input type
+    /// Audio input type.
     /// </summary>
     public enum AudioInputType
     {
@@ -194,19 +194,41 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #region ctor
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AnalogChannel"/> class.
+    /// Initialise a new instance of the <see cref="AnalogChannel"/> class.
     /// </summary>
     public AnalogChannel()
     {
-      CountryCollection collection = new CountryCollection();
-      _country = collection.GetTunerCountryFromID(31);
-      TunerSource = TunerInputType.Cable;
-      _videoInputType = VideoInputType.Tuner;
-      _audioInputType = AudioInputType.Automatic;
+      _channelName = String.Empty;
+      _channelFrequency = -1;
       _channelNumber = 4;
+      CountryCollection collection = new CountryCollection();
+      _country = collection.GetTunerCountryFromID(31);  // The Netherlands.
+      _tunerSource = TunerInputType.Cable;
+      _videoInputType = VideoInputType.Tuner;
+      _audioInputType = AudioInputType.Tuner;
+      _isVcrSignal = false;
+      _isTv = true;
       _mediaType = MediaTypeEnum.TV;
-      _vcrSginal = false;
-      Name = String.Empty;
+      _freeToAir = true;
+    }
+
+    /// <summary>
+    /// Initialise a new instance of the <see cref="AnalogChannel"/> class using an existing instance.
+    /// </summary>
+    /// <param name="channel">The existing channel instance.</param>
+    public AnalogChannel(AnalogChannel channel)
+    {
+      _channelName = channel.Name;
+      _channelFrequency = channel.Frequency;
+      _channelNumber = channel.ChannelNumber;
+      _country = channel.Country;
+      _tunerSource = channel.TunerSource;
+      _videoInputType = channel.VideoSource;
+      _audioInputType = channel.AudioSource;
+      _isVcrSignal = channel.IsVcrSignal;
+      _isTv = channel.IsTv;
+      _isRadio = channel.IsRadio;
+      _freeToAir = channel.FreeToAir;
     }
 
     #endregion
@@ -214,27 +236,46 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #region properties
 
     /// <summary>
-    /// Gets or sets the video source.
+    /// Get/set the channel's name.
     /// </summary>
-    /// <value>The video source.</value>
-    public VideoInputType VideoSource
+    public string Name
     {
-      get { return _videoInputType; }
-      set { _videoInputType = value; }
+      get { return _channelName; }
+      set { _channelName = value; }
     }
 
     /// <summary>
-    /// Gets or sets the audio source.
+    /// Get/set the carrier frequency for the channel. The frequency unit is kHz.
     /// </summary>
-    /// <value>The audio source.</value>
-    public AudioInputType AudioSource
+    public long Frequency
     {
-      get { return _audioInputType; }
-      set { _audioInputType = value; }
+      get { return _channelFrequency; }
+      set { _channelFrequency = value; }
     }
 
     /// <summary>
-    /// Gets or sets the tuner source.
+    /// Get/set the channel number associated with the channel. This is converted to a frequency using per-country
+    /// frequency-channel mappings.
+    /// </summary>
+    public int ChannelNumber
+    {
+      get { return _channelNumber; }
+      set { _channelNumber = value; }
+    }
+
+    /// <summary>
+    /// Get/set the country that the channel is broadcast in. This is used to convert the channel number to a
+    /// frequency using per-country frequency-channel mappings.
+    /// </summary>
+    public Country Country
+    {
+      get { return _country; }
+      set { _country = value; }
+    }
+
+    /// <summary>
+    /// Get/set the tuner source type. This type is applied when the channel video source is set to
+    /// <c>VideoSource.Tuner</c>.
     /// </summary>
     /// <value>The tuner source.</value>
     public TunerInputType TunerSource
@@ -244,61 +285,52 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the country
+    /// Get/set the channel video input or source.
     /// </summary>
-    public Country Country
+    public VideoInputType VideoSource
     {
-      get { return _country; }
-      set { _country = value; }
+      get { return _videoInputType; }
+      set { _videoInputType = value; }
     }
 
     /// <summary>
-    /// gets/sets the channel name
+    /// Get/set the channel audio input or source.
     /// </summary>
-    public string Name
+    public AudioInputType AudioSource
     {
-      get { return _channelName; }
-      set { _channelName = value; }
-    }
-
-    /// <summary>
-    /// gets/sets the frequency
-    /// </summary>
-    public long Frequency
-    {
-      get { return _channelFrequency; }
-      set { _channelFrequency = value; }
-    }
-
-    /// <summary>
-    /// gets/sets the channel number
-    /// </summary>
-    public int ChannelNumber
-    {
-      get { return _channelNumber; }
-      set { _channelNumber = value; }
+      get { return _audioInputType; }
+      set { _audioInputType = value; }
     }
 
     
 
     /// <summary>
-    /// boolean indicating if this is channel provides a vcr signal
+    /// Get/set whether the channel is a radio channel.
     /// </summary>
-    public bool IsVCRSignal
+    public bool IsRadio
     {
-      get { return _vcrSginal; }
-      set { _vcrSginal = value; }
+      get { return _isRadio; }
+      set { _isRadio = value; }
+    }
+
+    /// <summary>
+    /// Get/set whether the channel is a free-to-air or encrypted channel.
+    /// </summary>
+    public bool FreeToAir
+    {
+      get { return _freeToAir; }
+      set { _freeToAir = value; }
     }
 
     #endregion
 
-    #region overrides
+    #region object overrides
 
     /// <summary>
-    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// Get a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
     /// </returns>
     public override string ToString()
     {
@@ -309,44 +341,47 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
     /// <returns>
-    /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
+    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
     /// </returns>
     public override bool Equals(object obj)
     {
-      if ((obj as AnalogChannel) == null)
-      {
-        return false;
-      }
       AnalogChannel ch = obj as AnalogChannel;
-      if (ch.VideoSource != VideoSource)
+      if (ch == null)
       {
         return false;
       }
-      if (ch.AudioSource != AudioSource)
+
+      if (!ch.Name.Equals(_channelName))
       {
         return false;
       }
-      if (ch.TunerSource != TunerSource)
+      if (ch.Frequency != _channelFrequency)
       {
         return false;
       }
-      if (ch.Country.Id != Country.Id)
+      if (ch.ChannelNumber != _channelNumber)
       {
         return false;
       }
-      if (ch.Name != Name)
+      if ((ch.Country == null && _country != null) ||
+        (ch.Country != null && _country == null) ||
+        (ch.Country != null && _country != null && ch.Country.Id != _country.Id))
       {
         return false;
       }
-      if (ch.Frequency != Frequency)
+      if (ch.TunerSource != _tunerSource)
       {
         return false;
       }
-      if (ch.ChannelNumber != ChannelNumber)
+      if (ch.VideoSource != _videoInputType)
+      {
+        return false;
+      }
+      if (ch.AudioSource != _audioInputType)
       {
         return false;
       }
@@ -354,10 +389,15 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return false;
       }      
-      if (ch.IsVCRSignal != IsVCRSignal)
+      if (ch.IsTv != _isTv)
       {
         return false;
       }
+      if (ch.FreeToAir != _freeToAir)
+      {
+        return false;
+      }
+
       return true;
     }
 
@@ -372,16 +412,29 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       return base.GetHashCode() ^ _channelName.GetHashCode() ^ _channelFrequency.GetHashCode() ^
              _channelNumber.GetHashCode() ^ _country.GetHashCode() ^ _mediaType.GetHashCode() ^
              _tunerSource.GetHashCode() ^ _videoInputType.GetHashCode() ^ _audioInputType.GetHashCode() ^
-             _vcrSginal.GetHashCode();
+             _isVcrSignal.GetHashCode();
+    }
+
+    #endregion
+
+    #region ICloneable member
+
+    /// <summary>
+    /// Clone the channel instance.
+    /// </summary>
+    /// <returns>a shallow clone of the channel instance</returns>
+    public object Clone()
+    {
+      return this.MemberwiseClone();
     }
 
     #endregion
 
     /// <summary>
-    /// Checks if the given channel and this instance are on the different transponder
+    /// Check if the given channel and this instance are on different transponders.
     /// </summary>
-    /// <param name="channel">Channel to check</param>
-    /// <returns>true, if the channels are on the same transponder</returns>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
     public bool IsDifferentTransponder(IChannel channel)
     {
       AnalogChannel analogChannel = channel as AnalogChannel;
@@ -398,12 +451,13 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// Checks if the given channel is FTA. (Not scrambled)
+    /// Get a channel instance with properties set to enable tuning of this channel.
     /// </summary>
-    /// <returns>true, if the channel is FTA</returns>
-    public bool FreeToAir
+    /// <returns>a channel instance with parameters adjusted as necessary</returns>
+    public IChannel GetTuningChannel()
     {
-      get { return true; }
+      // No adjustments required.
+      return (IChannel)this.Clone();
     }
 
     public MediaTypeEnum MediaType

@@ -43,6 +43,14 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 using MySql.Data.MySqlClient;
+using TvDatabase;
+using TvLibrary;
+using TvLibrary.Channels;
+using TvLibrary.Implementations;
+using TvLibrary.Interfaces;
+using TvLibrary.Interfaces.Device;
+using TvLibrary.Log;
+
 using Card = Mediaportal.TV.Server.TVDatabase.Gentle.Card;
 using Channel = Mediaportal.TV.Server.TVDatabase.Gentle.Channel;
 using ChannelGroup = Mediaportal.TV.Server.TVDatabase.Gentle.ChannelGroup;
@@ -851,7 +859,10 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         return card;
       }
       //
-      // Card(devicePath, name, priority, grabEPG, lastEpgGrab, recordingFolder, idServer, enabled, camType, timeshiftingFolder, recordingFormat, decryptLimit)
+      // Card(devicePath, name, priority, grabEPG, lastEpgGrab, recordingFolder, idServer, enabled, camType,
+      //      timeshiftingFolder, decryptLimit, preloadCard, netProvider, idleMode, multiChannelDecryptMode,
+      //      alwaysSendDiseqcCommands, diseqcCommandRepeatCount, pidFilterMode, useCustomTuning,
+      //      useConditionalAccess)
       //
       Card newCard = new Card(devicePath, name, 1, true, new DateTime(2000, 1, 1), "", server.IdServer, true, 0, "", 0,
                               0, false, true, false, (int)DbNetworkProvider.Generic);
@@ -912,7 +923,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
     public Channel AddNewChannel(string name)
     {
       Channel newChannel = new Channel(false, false, 0, new DateTime(2000, 1, 1), false, new DateTime(2000, 1, 1),
-                                       -1, true, "", name);
+                                       -1, true, "", name, false);
       return newChannel;
     }
 
@@ -1400,7 +1411,6 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       int symbolRate = 0;
       int modulation = 0;
       int polarisation = 0;
-      int switchFrequency = 0;
       int diseqc = 0;
       int bandwidth = 8;
       bool freeToAir = true;
@@ -1412,12 +1422,13 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       int majorChannel = -1;
       string provider = "";
       int channelType = 0;
-      int band = 0;
+      int idLnbType = 0;
       int satIndex = -1;
       int innerFecRate = (int)BinaryConvolutionCodeRate.RateNotSet;
       int pilot = (int)Pilot.NotSet;
       int rollOff = (int)RollOff.NotSet;
       string url = "";
+      int bitrate = 0;
 
       AnalogChannel analogChannel = tvChannel as AnalogChannel;
       if (analogChannel != null)
@@ -1431,7 +1442,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         tunerSource = (int)analogChannel.TunerSource;
         videoInputType = (int)analogChannel.VideoSource;
         audioInputType = (int)analogChannel.AudioSource;
-        isVCRSignal = analogChannel.IsVCRSignal;
+        isVCRSignal = analogChannel.IsVcrSignal;
         channelType = 0;
       }
 
@@ -1441,8 +1452,6 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         majorChannel = atscChannel.MajorChannel;
         minorChannel = atscChannel.MinorChannel;
         channelNumber = atscChannel.PhysicalChannel;
-        //videoPid = atscChannel.VideoPid;
-        //audioPid = atscChannel.AudioPid;
         modulation = (int)atscChannel.ModulationType;
         channelType = 1;
       }
@@ -1452,7 +1461,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       {
         symbolRate = dvbcChannel.SymbolRate;
         modulation = (int)dvbcChannel.ModulationType;
-        channelNumber = dvbcChannel.LogicalChannelNumber > 999 ? channel.IdChannel : dvbcChannel.LogicalChannelNumber;
+        channelNumber = dvbcChannel.LogicalChannelNumber;
         channelType = 2;
       }
 
@@ -1461,22 +1470,21 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       {
         symbolRate = dvbsChannel.SymbolRate;
         polarisation = (int)dvbsChannel.Polarisation;
-        switchFrequency = dvbsChannel.SwitchingFrequency;
-        diseqc = (int)dvbsChannel.DisEqc;
-        band = (int)dvbsChannel.BandType;
+        diseqc = (int)dvbsChannel.Diseqc;
+        idLnbType = ((LnbType)dvbsChannel.LnbType).IdLnbType;
         satIndex = dvbsChannel.SatelliteIndex;
         modulation = (int)dvbsChannel.ModulationType;
         innerFecRate = (int)dvbsChannel.InnerFecRate;
         pilot = (int)dvbsChannel.Pilot;
-        rollOff = (int)dvbsChannel.Rolloff;
-        channelNumber = dvbsChannel.LogicalChannelNumber > 999 ? channel.IdChannel : dvbsChannel.LogicalChannelNumber;
+        rollOff = (int)dvbsChannel.RollOff;
+        channelNumber = dvbsChannel.LogicalChannelNumber;
         channelType = 3;
       }
 
       DVBTChannel dvbtChannel = tvChannel as DVBTChannel;
       if (dvbtChannel != null)
       {
-        bandwidth = dvbtChannel.BandWidth;
+        bandwidth = dvbtChannel.Bandwidth;
         channelNumber = dvbtChannel.LogicalChannelNumber;
         channelType = 4;
       }
@@ -1505,13 +1513,12 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       }
 
       TuningDetail detail = new TuningDetail(channel.IdChannel, channelName, provider,
-                                             channelType, channelNumber, (int)channelFrequency, country, isRadio, isTv,
-                                             networkId, transportId, serviceId, pmtPid, freeToAir,
-                                             modulation, polarisation, symbolRate, diseqc, switchFrequency,
+                                             channelType, channelNumber, (int)channelFrequency, country,
+                                             isRadio, isTv, networkId, transportId, serviceId, pmtPid,
+                                             freeToAir, modulation, polarisation, symbolRate, diseqc,
                                              bandwidth, majorChannel, minorChannel, videoInputType,
-                                             audioInputType, isVCRSignal, tunerSource, band,
-                                             satIndex,
-                                             innerFecRate, pilot, rollOff, url, 0);
+                                             audioInputType, isVCRSignal, tunerSource, idLnbType,
+                                             satIndex, innerFecRate, pilot, rollOff, url, bitrate);
       detail.Persist();
       return detail;
     }
@@ -1531,7 +1538,6 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       int symbolRate = 0;
       int modulation = 0;
       int polarisation = 0;
-      int switchFrequency = 0;
       int diseqc = 0;
       int bandwidth = 8;
       bool freeToAir = true;
@@ -1543,7 +1549,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       int majorChannel = -1;
       string provider = "";
       int channelType = 0;
-      int band = 0;
+      int idLnbType = 0;
       int satIndex = -1;
       int innerFecRate = (int)BinaryConvolutionCodeRate.RateNotSet;
       int pilot = (int)Pilot.NotSet;
@@ -1562,7 +1568,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         tunerSource = (int)analogChannel.TunerSource;
         videoInputType = (int)analogChannel.VideoSource;
         audioInputType = (int)analogChannel.AudioSource;
-        isVCRSignal = analogChannel.IsVCRSignal;
+        isVCRSignal = analogChannel.IsVcrSignal;
         channelType = 0;
       }
       ATSCChannel atscChannel = tvChannel as ATSCChannel;
@@ -1571,8 +1577,6 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         majorChannel = atscChannel.MajorChannel;
         minorChannel = atscChannel.MinorChannel;
         channelNumber = atscChannel.PhysicalChannel;
-        //videoPid = atscChannel.VideoPid;
-        //audioPid = atscChannel.AudioPid;
         modulation = (int)atscChannel.ModulationType;
         channelType = 1;
       }
@@ -1582,7 +1586,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       {
         symbolRate = dvbcChannel.SymbolRate;
         modulation = (int)dvbcChannel.ModulationType;
-        channelNumber = dvbcChannel.LogicalChannelNumber > 999 ? channel.IdChannel : dvbcChannel.LogicalChannelNumber;
+        channelNumber = dvbcChannel.LogicalChannelNumber;
         channelType = 2;
       }
 
@@ -1591,22 +1595,21 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       {
         symbolRate = dvbsChannel.SymbolRate;
         polarisation = (int)dvbsChannel.Polarisation;
-        switchFrequency = dvbsChannel.SwitchingFrequency;
-        diseqc = (int)dvbsChannel.DisEqc;
-        band = (int)dvbsChannel.BandType;
+        diseqc = (int)dvbsChannel.Diseqc;
+        idLnbType = ((LnbType)dvbsChannel.LnbType).IdLnbType;
         satIndex = dvbsChannel.SatelliteIndex;
         modulation = (int)dvbsChannel.ModulationType;
         innerFecRate = (int)dvbsChannel.InnerFecRate;
         pilot = (int)dvbsChannel.Pilot;
-        rollOff = (int)dvbsChannel.Rolloff;
-        channelNumber = dvbsChannel.LogicalChannelNumber > 999 ? channel.IdChannel : dvbsChannel.LogicalChannelNumber;
+        rollOff = (int)dvbsChannel.RollOff;
+        channelNumber = dvbsChannel.LogicalChannelNumber;
         channelType = 3;
       }
 
       DVBTChannel dvbtChannel = tvChannel as DVBTChannel;
       if (dvbtChannel != null)
       {
-        bandwidth = dvbtChannel.BandWidth;
+        bandwidth = dvbtChannel.Bandwidth;
         channelNumber = dvbtChannel.LogicalChannelNumber;
         channelType = 4;
       }
@@ -1681,10 +1684,9 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       const int audioInputType = 0;
       const bool isVCRSignal = false;
       const int symbolRate = 0;
-      const int modulation = 0;
-      const int polarisation = 0;
-      const int switchFrequency = 0;
-      const int diseqc = 0;
+      const int modulation = (int)ModulationType.ModNotSet;
+      const int polarisation = (int)Polarisation.NotSet;
+      const int diseqc = (int)DiseqcPort.None;
       const int bandwidth = 8;
       const bool freeToAir = true;
       const int pmtPid = -1;
@@ -1695,7 +1697,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       const int majorChannel = -1;
       const string provider = "";
       const int channelType = 5;
-      const int band = 0;
+      const int idLnbType = 0;
       const int satIndex = -1;
       const int innerFecRate = (int)BinaryConvolutionCodeRate.RateNotSet;
       const int pilot = (int)Pilot.NotSet;
@@ -1705,13 +1707,12 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         url = "";
       }
       TuningDetail detail = new TuningDetail(channel.IdChannel, channelName, provider,
-                                             channelType, channelNumber, (int)channelFrequency, country, isRadio, isTv,
-                                             networkId, transportId, serviceId, pmtPid, freeToAir,
-                                             modulation, polarisation, symbolRate, diseqc, switchFrequency,
+                                             channelType, channelNumber, (int)channelFrequency, country,
+                                             isRadio, isTv, networkId, transportId, serviceId, pmtPid,
+                                             freeToAir, modulation, polarisation, symbolRate, diseqc,
                                              bandwidth, majorChannel, minorChannel, videoInputType,
-                                             audioInputType, isVCRSignal, tunerSource, band,
-                                             satIndex,
-                                             innerFecRate, pilot, rollOff, url, bitrate);
+                                             audioInputType, isVCRSignal, tunerSource, idLnbType,
+                                             satIndex, innerFecRate, pilot, rollOff, url, bitrate);
       detail.Persist();
       return detail;
     }
@@ -3263,8 +3264,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
             bool hasOverlappingSchedule = schedule.IsOverlapping(assignedSchedule);
             if (hasOverlappingSchedule)
             {
-              bool isSameTransponder = (schedule.isSameTransponder(assignedSchedule) && card.supportSubChannels);
-              if (!isSameTransponder)
+              if (!schedule.isSameTransponder(assignedSchedule))
               {
                 overlappingSchedules.Add(assignedSchedule);
                 Log.Info("AssignSchedulesToCard: overlapping with " + assignedSchedule + " on card {0}, ID = {1}", count,

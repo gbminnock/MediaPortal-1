@@ -44,25 +44,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 {
   public partial class TvRecording : SectionSettings
   {
-    #region CardInfo class
-
-    public class CardInfo
-    {
-      public Card card;
-
-      public CardInfo(Card newcard)
-      {
-        card = newcard;
-      }
-
-      public override string ToString()
-      {
-        return card.Name;
-      }
-    }
-
-    #endregion
-
     #region Example Format class
 
     private readonly int[] _formatIndex = new int[2];
@@ -334,8 +315,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
     private void comboBoxCards_SelectedIndexChanged(object sender, EventArgs e)
     {
-      CardInfo info = (CardInfo)comboBoxCards.SelectedItem;
-      textBoxFolder.Text = info.card.RecordingFolder;
+      textBoxFolder.Text = ((Card)comboBoxCards.SelectedItem).RecordingFolder;
       if (String.IsNullOrEmpty(textBoxFolder.Text))
       {
         var recPath = TVDatabase.TVBusinessLayer.Common.GetDefaultRecordingFolder();
@@ -346,19 +326,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         textBoxFolder.Text = recPath;
         _needRestart = true;
       }
-      /*
-       * Mantis #0001991: disable mpg recording  (part I: force TS recording format)
-       * 
-      switch (info.card.RecordingFormat)
-      {
-        case 0:
-          comboBoxRecordingFormat.SelectedIndex = 0;
-          break;
-        case 1:
-          comboBoxRecordingFormat.SelectedIndex = 1;
-          break;
-      }
-      */
     }   
 
     // Browse Recording folder
@@ -371,8 +338,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       if (dlg.ShowDialog(this) == DialogResult.OK)
       {
         textBoxFolder.Text = dlg.SelectedPath;
-        CardInfo info = (CardInfo)comboBoxCards.SelectedItem;
-        if (info.card.RecordingFolder != textBoxFolder.Text)
+        Card card = (Card)comboBoxCards.SelectedItem;
+        if (card.RecordingFolder != textBoxFolder.Text)
         {
           _needRestart = true;
           info.card.RecordingFolder = textBoxFolder.Text;
@@ -391,7 +358,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       IList<Card> cards = ServiceAgents.Instance.CardServiceAgent.ListAllCards(CardIncludeRelationEnum.None);
       foreach (Card card in cards)
       {
-        comboBoxCards.Items.Add(new CardInfo(card));
+        comboBoxCards.Items.Add(card);
       }
       if (comboBoxCards.Items.Count > 0)
         comboBoxCards.SelectedIndex = 0;
@@ -425,8 +392,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
     private void textBoxFolder_TextChanged(object sender, EventArgs e)
     {
-      CardInfo info = (CardInfo)comboBoxCards.SelectedItem;
-      if (info.card.RecordingFolder != textBoxFolder.Text)
+      Card card = (Card)comboBoxCards.SelectedItem;
+      if (card.RecordingFolder != textBoxFolder.Text)
       {
         info.card.RecordingFolder = textBoxFolder.Text;
         ServiceAgents.Instance.CardServiceAgent.SaveCard(info.card);
@@ -441,8 +408,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       // Change RecordingFolder for all cards
       for (int iIndex = 0; iIndex < comboBoxCards.Items.Count; iIndex++)
       {
-        CardInfo info = (CardInfo)comboBoxCards.Items[iIndex];
-        if (info.card.RecordingFolder != textBoxFolder.Text)
+        Card card = (Card)comboBoxCards.Items[iIndex];
+        if (card.RecordingFolder != textBoxFolder.Text)
         {
           info.card.RecordingFolder = textBoxFolder.Text;
           ServiceAgents.Instance.CardServiceAgent.SaveCard(info.card);

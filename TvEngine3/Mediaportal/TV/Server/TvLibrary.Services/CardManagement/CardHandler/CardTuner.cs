@@ -57,7 +57,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public CardTuner(ITvCardHandler cardHandler)
     {
       _cardHandler = cardHandler;
-      _cardHandler.Card.OnNewSubChannelEvent += new OnNewSubChannelDelegate(Card_OnNewSubChannelEvent);
+      _cardHandler.Card.OnNewSubChannelEvent = new OnNewSubChannelDelegate(Card_OnNewSubChannelEvent);
     }
 
     private void Card_OnNewSubChannelEvent(int id)
@@ -511,7 +511,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public event OnBeforeTuneDelegate OnBeforeTuneEvent;
     
 
-    private void Card_OnAfterTuneEvent()
+    private void CardTuner_OnAfterTuneEvent()
     {
       if (OnAfterTuneEvent != null)
       {
@@ -590,10 +590,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
 
 
     /// <summary>
-    /// Method to check if card can tune to the channel specified
+    /// Check if the tuner can tune to a specific channel.
     /// </summary>
-    /// <param name="channel">channel.</param>
-    /// <returns>true if card can tune to the channel otherwise false</returns>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
     public bool CanTune(IChannel channel)
     {
       try

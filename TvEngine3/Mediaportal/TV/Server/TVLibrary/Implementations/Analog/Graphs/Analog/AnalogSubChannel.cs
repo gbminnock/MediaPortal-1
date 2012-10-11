@@ -50,8 +50,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <summary>
     /// Initializes a new instance of the <see cref="AnalogSubChannel"/> class.
     /// </summary>
-    internal AnalogSubChannel(TvCardAnalog card, int subchnnelId, TvAudio tvAudio, bool hasTeletext,
+    internal AnalogSubChannel(int subChannelId, TvCardAnalog card, TvAudio tvAudio, bool hasTeletext,
                               IBaseFilter mpFileWriter)
+      : base(subChannelId)
     {
       _card = card;
       _hasTeletext = hasTeletext;
@@ -59,7 +60,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       _mpFileWriter = mpFileWriter;
       _mpRecord = (IMPRecord)_mpFileWriter;
       _mpRecord.AddChannel(ref _subChannelId);
-      _subChannelId = subchnnelId;
     }
 
     #endregion
@@ -99,12 +99,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     }
 
     /// <summary>
-    /// Should be called when the graph is about to start
-    /// Resets the state 
-    /// If graph is already running, starts the pmt grabber to grab the
-    /// pmt for the new channel
+    /// Should be called when the graph has been started
     /// </summary>
-    public override void OnGraphStart()
+    public override void OnGraphRunning()
     {
       Log.WriteFile("analog subch:{0} OnGraphStart", _subChannelId);
       if (_teletextDecoder != null)
@@ -152,13 +149,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// sets the filename used for timeshifting
     /// </summary>
     /// <param name="fileName">timeshifting filename</param>
-    protected override bool OnStartTimeShifting(string fileName)
+    protected override void OnStartTimeShifting(string fileName)
     {
       if (_card.SupportsQualityControl && !IsRecording)
       {
         _card.Quality.StartPlayback();
       }
-      _timeshiftFileName = fileName;
       Log.WriteFile("analog:SetTimeShiftFileName:{0}", fileName);
       Log.WriteFile("analog:SetTimeShiftFileName: uses .ts");
       ScanParameters parameters = _card.Parameters;
@@ -171,15 +167,13 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       if (CurrentChannel == null)
       {
         Log.Error("Error, CurrentChannel is null when trying to start timeshifting");
-        return false;
+        throw new Exception("AnalogSubChannel: current channel is null");
       }
 
       // Important: this call needs to be made *before* the call to StartTimeShifting().
       _mpRecord.SetChannelType(_subChannelId, (CurrentChannel.MediaType == MediaTypeEnum.TV ? 0 : 1));
 
       _mpRecord.StartTimeShifting(_subChannelId);
-      _dateTimeShiftStarted = DateTime.Now;
-      return true;
     }
 
     /// <summary>
@@ -212,7 +206,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       _mpRecord.SetChannelType(_subChannelId, (CurrentChannel.MediaType == MediaTypeEnum.TV ? 0 : 1));
 
       _mpRecord.StartRecord(_subChannelId);
-      _dateRecordingStarted = DateTime.Now;
     }
 
     /// <summary>
@@ -242,29 +235,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
 
     #endregion
 
-    #region audio streams
-
-    /// <summary>
-    /// returns the list of available audio streams
-    /// </summary>
-    public override List<IAudioStream> AvailableAudioStreams
-    {
-      get { return _tvAudio.GetAvailableAudioStreams(); }
-    }
-
-    /// <summary>
-    /// get/set the current selected audio stream
-    /// </summary>
-    public override IAudioStream CurrentAudioStream
-    {
-      get { return _tvAudio.CurrentAudioStream; }
-      set { _tvAudio.CurrentAudioStream = value; }
-    }
-
-    #endregion
-
-    #region video stream
-
     /// <summary>
     /// Returns true when unscrambled audio/video is received otherwise false
     /// </summary>
@@ -273,21 +243,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     {
       get { return true; }
     }
-
-    /// <summary>
-    /// Retursn the video format (always returns MPEG2). 
-    /// </summary>
-    /// <value>The number of channels decrypting.</value>
-    public override IVideoStream GetCurrentVideoStream
-    {
-      get
-      {
-        VideoStream stream = new VideoStream();
-        return stream;
-      }
-    }
-
-    #endregion
 
     #region teletext
 
@@ -325,6 +280,8 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     {
       if (_mpRecord != null)
       {
+        _mpRecord.StopTimeShifting(_subChannelId);
+        _mpRecord.StopRecord(_subChannelId);
         _mpRecord.DeleteChannel(_subChannelId);
       }
     }

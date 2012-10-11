@@ -37,25 +37,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 {
   public partial class TvTimeshifting : SectionSettings
   {
-    #region CardInfo class
-
-    public class CardInfo
-    {
-      public Card card;
-
-      public CardInfo(Card newcard)
-      {
-        card = newcard;
-      }
-
-      public override string ToString()
-      {
-        return card.Name;
-      }
-    }
-
-    #endregion
-
     #region Vars
 
     private bool _needRestart;
@@ -136,7 +117,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       IList<Card> cards = ServiceAgents.Instance.CardServiceAgent.ListAllCards(CardIncludeRelationEnum.None);
       foreach (Card card in cards)
       {
-        comboBoxCards.Items.Add(new CardInfo(card));
+        comboBoxCards.Items.Add(card);
       }
 
       if (comboBoxCards.Items.Count > 0)

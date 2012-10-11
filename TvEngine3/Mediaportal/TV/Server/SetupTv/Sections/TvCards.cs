@@ -40,30 +40,10 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
   {
     private bool _needRestart;
     private readonly Dictionary<string, CardType> cardTypes = new Dictionary<string, CardType>();
-    private TabPage usbWINTV_tabpage;
 
     public delegate void ChangedEventHandler(object sender, EventArgs e);
 
     public event ChangedEventHandler TvCardsChanged;
-
-    #region CardInfo class
-
-    public class CardInfo
-    {
-      public Card card;
-
-      public CardInfo(Card newcard)
-      {
-        card = newcard;
-      }
-
-      public override string ToString()
-      {
-        return card.Name;
-      }
-    }
-
-    #endregion
 
     public TvCards()
       : this("TV Cards") {}
@@ -177,7 +157,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
     {
       base.OnSectionActivated();
       mpListView1.Items.Clear();
-      mpComboBoxCard.Items.Clear();
       IList<Card> cards = new List<Card>();
       try
       {
@@ -185,7 +164,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         foreach (Card card in cards)
         {
           cardTypes[card.DevicePath] = ServiceAgents.Instance.ControllerServiceAgent.Type(card.IdCard);
-          mpComboBoxCard.Items.Add(new CardInfo(card));
         }
       }
       catch (Exception) {}
@@ -218,7 +196,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           //CAM and CAM limit don't apply to non-digital cards
           if (cardType.ToUpperInvariant().Contains("DVB") || cardType.ToUpperInvariant().Contains("ATSC"))
           {
-            if (card.CAM)
+            if (card.UseConditionalAccess)
             {
               item.SubItems.Add("Yes");
             }
@@ -276,39 +254,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       }
       ReOrder();
       UpdateHybrids();
-      checkWinTVCI();
       UpdateMenu();
       mpListView1.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
-    }
-
-    private void checkWinTVCI()
-    {
-      //check if the hauppauge wintv usb CI module is installed
-      DsDevice[] capDevices = DsDevice.GetDevicesOfCat(FilterCategory.AMKSCapture);
-      DsDevice usbWinTvDevice = null;
-      for (int capIndex = 0; capIndex < capDevices.Length; capIndex++)
-      {
-        if (capDevices[capIndex].Name != null)
-        {
-          if (capDevices[capIndex].Name.ToUpperInvariant() == "WINTVCIUSBBDA SOURCE")
-          {
-            usbWinTvDevice = capDevices[capIndex];
-            break;
-          }
-        }
-      }
-      if (usbWinTvDevice == null)
-      {
-        if (usbWINTV_tabpage == null)
-        {
-          usbWINTV_tabpage = tabControl1.TabPages[2];
-          tabControl1.TabPages.RemoveAt(2);
-        }
-      }
-      else if (usbWINTV_tabpage != null && tabControl1.TabCount == 2)
-      {
-        tabControl1.TabPages.Insert(2, usbWINTV_tabpage);
-      }
     }
 
     private void buttonUp_Click(object sender, EventArgs e)
@@ -536,11 +483,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         mpListView1.Items.Remove(mpListView1.SelectedItems[0]);
         _needRestart = true;
       }
-    }
-
-    private void mpComboBoxCard_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      _needRestart = true;
     }
 
     private void linkLabelHybridCard_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

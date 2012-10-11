@@ -19,39 +19,48 @@
  *
  */
 #pragma once
-#include "pidtable.h" 
+#include <vector>
+using namespace std;
 
 class CChannelInfo
 {
-public:
-  CChannelInfo(void);
-  CChannelInfo(const CChannelInfo& info);
-  virtual ~CChannelInfo(void);
-  CChannelInfo& operator = (const CChannelInfo &info);
-  void Copy(const CChannelInfo &info);
-  void Reset();
-  int NetworkId;
-  int TransportId;
-  int ServiceId;
-  int MajorChannel;
-  int MinorChannel;
-  int Frequency;
-  int EIT_schedule_flag;
-  int EIT_present_following_flag;
-  int RunningStatus;
-  int FreeCAMode;
-  int ServiceType;
-  int Modulation;
-	int LCN;
-  char ProviderName[255];
-  char ServiceName[255];
-	int hasVideo;
-	int hasAudio;
-  int hasCaDescriptor;
+  public:
+    CChannelInfo(void);
+    CChannelInfo(const CChannelInfo& info);
+    virtual ~CChannelInfo(void);
+    CChannelInfo& operator = (const CChannelInfo &info);
+    void Copy(const CChannelInfo &info);
+    void Reset();
+    void ClearStrings();
 
-  CPidTable PidTable;
-  int PatVersion;
-	bool OtherMux;
-	bool PmtReceived;
-	bool SdtReceived;
+    int OriginalNetworkId;
+    int TransportStreamId;
+    int ServiceId;
+    char* ServiceName;
+    char* ProviderName;
+    char* LogicalChannelNumber;
+    int ServiceType;
+    int VideoStreamCount;
+    int AudioStreamCount;
+    bool IsHighDefinition;
+    bool IsEncrypted;
+    bool IsRunning;
+    bool IsOtherMux;
+    int PmtPid;
+    int PreviousOriginalNetworkId;
+    int PreviousTransportStreamId;
+    int PreviousServiceId;
+
+    vector<int> NetworkIds;
+    vector<int> BouquetIds;
+    vector<unsigned int> Languages;                 // 3 x 1 byte characters with a NULL byte on the end
+    vector<int> AvailableInCells;
+    vector<int> UnavailableInCells;
+    vector<__int64> TargetRegions;
+    vector<unsigned int> AvailableInCountries;      // 3 x 1 byte characters with a NULL byte on the end
+    vector<unsigned int> UnavailableInCountries;    // 3 x 1 byte characters with a NULL byte on the end
+
+    bool IsPmtReceived;
+    bool IsServiceInfoReceived;
+    bool IsPidReceived;
 };

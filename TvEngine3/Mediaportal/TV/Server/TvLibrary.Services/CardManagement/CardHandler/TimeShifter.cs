@@ -296,7 +296,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Stops the time shifting.
     /// </summary>
-    /// <returns></returns>    
+    /// <returns></returns>
     public bool Stop(ref IUser user, int idChannel)
     {
       bool stop = false;

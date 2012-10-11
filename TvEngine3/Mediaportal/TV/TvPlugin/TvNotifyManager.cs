@@ -19,39 +19,36 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Windows.Forms;
+using MediaPortal.Dialogs;
 using MediaPortal.GUI.Library;
+using MediaPortal.Player;
 using MediaPortal.Profile;
-using Mediaportal.TV.Server.TVControl;
-using Mediaportal.TV.Server.TVControl.Events;
-using Mediaportal.TV.Server.TVControl.Interfaces.Events;
-using Mediaportal.TV.Server.TVControl.Interfaces.Services;
-using Mediaportal.TV.Server.TVDatabase.Entities;
-using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
-using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer.Entities;
-using Mediaportal.TV.Server.TVService.ServiceAgents;
-using Mediaportal.TV.Server.TVService.ServiceAgents.Interfaces;
-using Mediaportal.TV.TvPlugin.Helper;
-using Channel = Mediaportal.TV.Server.TVDatabase.Entities.Channel;
-using Recording = Mediaportal.TV.Server.TVDatabase.Entities.Recording;
+using MediaPortal.Util;
+using TvControl;
+using TvDatabase;
 
-namespace Mediaportal.TV.TvPlugin
+namespace TvPlugin
 {
-  public class TvNotifyManager : ITvServerEventCallbackClient
+  public class TvNotifyManager
   {
-    private readonly Timer _timer;
+    private Timer _timer;
     // flag indicating that notifies have been added/changed/removed
-    private readonly IRecordingService _recordingServiceAgent = ServiceAgents.Instance.RecordingServiceAgent;
     private static bool _notifiesListChanged;
     private static bool _enableRecNotification;
     private static bool _busy;
-    private readonly int _preNotifyConfig;
+    private int _preNotifyConfig;
 
     //list of all notifies (alert me n minutes before program starts)
-    private readonly IList<ProgramBLL> _notifiesList = new List<ProgramBLL>();
+    private IList<Program> _notifiesList;
+    private IList _notifiedRecordings;
+
+    private static IList<Recording> _actualRecordings;
+
+    private User _dummyuser;
 
     public TvNotifyManager()
     {
@@ -60,113 +57,47 @@ namespace Mediaportal.TV.TvPlugin
         _enableRecNotification = xmlreader.GetValueAsBool("mytv", "enableRecNotifier", false);
         _preNotifyConfig = xmlreader.GetValueAsInt("mytv", "notifyTVBefore", 300);
       }
-      
+
       _busy = false;
       _timer = new Timer();
       _timer.Stop();
       // check every 15 seconds for notifies
-      new User {Name = "Free channel checker"};
+      _dummyuser = new User();
+      _dummyuser.IsAdmin = false;
+      _dummyuser.Name = "Free channel checker";
       _timer.Interval = 15000;
       _timer.Enabled = true;
       _timer.Tick += new EventHandler(_timer_Tick);
-    }
 
-    private void OnRecordingFailed(int idSchedule)
-    {
-      Schedule failedSchedule = ServiceAgents.Instance.ScheduleServiceAgent.GetSchedule(idSchedule);
-      if (failedSchedule != null)
-      {
-          Log.Debug("TVPlugIn: No free card available for {0}. Notifying user.", failedSchedule.ProgramName);
-
-          Notify(GUILocalizeStrings.Get(1004),
-                 String.Format("{0}. {1}", failedSchedule.ProgramName, GUILocalizeStrings.Get(200055)),
-                 TVHome.Navigator.Channel.Entity);
-      }
-    }    
-
-    private void OnRecordingStarted(int idRecording)
-    {
-
-      Server.TVDatabase.Entities.Recording startedRec = _recordingServiceAgent.GetRecording(idRecording);
-      if (startedRec != null)
-      {
-        Server.TVDatabase.Entities.Schedule parentSchedule = startedRec.Schedule;
-        if (parentSchedule != null && parentSchedule.IdSchedule > 0)
-        {
-          string endTime = string.Empty;
-          endTime = parentSchedule.EndTime.AddMinutes(parentSchedule.PostRecordInterval).ToString("t",
-                                                                                                  CultureInfo.
-                                                                                                    CurrentCulture.
-                                                                                                    DateTimeFormat);
-          string text = String.Format("{0} {1}-{2}",
-                                      startedRec.Title,
-                                      startedRec.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
-                                      endTime);
-          //Recording started                            
-          Notify(GUILocalizeStrings.Get(1446), text, startedRec.Channel);
-        }
-      }
-    }
-
-    private void OnRecordingEnded(int idRecording)
-    {
-      Recording stoppedRec = _recordingServiceAgent.GetRecording(idRecording);
-      if (stoppedRec != null)
-      {
-        string textPrg;
-        IList<Program> prgs = ServiceAgents.Instance.ProgramServiceAgent.GetProgramsByTitleAndTimesInterval(stoppedRec.Title, stoppedRec.StartTime,
-                                                                      stoppedRec.EndTime).ToList();        
-        Program prg = null;
-        if (prgs != null && prgs.Count > 0)
-        {
-          prg = prgs[0];
-          }
-        if (prg != null)
-        {
-          textPrg = String.Format("{0} {1}-{2}",
-                                  prg.Title,
-                                  prg.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
-                                  prg.EndTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat));
-        }
-        else
-        {          
-          textPrg = String.Format("{0} {1}-{2}",
-                                  stoppedRec.Title,
-                                  stoppedRec.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
-                                  DateTime.Now.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat));
-        }
-        //Recording stopped:                                    
-        Notify(GUILocalizeStrings.Get(1447), textPrg, stoppedRec.Channel);
-      }
+      _notifiedRecordings = new ArrayList();
     }
 
     public void Start()
-      {
+    {
       Log.Info("TvNotify: start");
-
-      if (_enableRecNotification)
-      {
-        ServiceAgents.Instance.EventServiceAgent.RegisterTvServerEventCallbacks(this);        
-      }
       _timer.Start();
-    }    
+    }
 
     public void Stop()
     {
       Log.Info("TvNotify: stop");
-
-      if (_enableRecNotification)
-      {
-        ServiceAgents.Instance.EventServiceAgent.UnRegisterTvServerEventCallbacks(this, !TVHome.Connected);        
-      }
       _timer.Stop();
     }
 
     public static bool RecordingNotificationEnabled
-      {
+    {
       get { return _enableRecNotification; }
-        }
+    }
 
+    public static void ForceUpdate()
+    {
+      if (!_enableRecNotification)
+      {
+        return;
+      }
+      AddActiveRecordings();
+      CheckForStoppedRecordings();
+    }
 
     public static void OnNotifiesChanged()
     {
@@ -174,23 +105,76 @@ namespace Mediaportal.TV.TvPlugin
       _notifiesListChanged = true;
     }
 
+    private static Recording CheckForStoppedRecordings()
+    {
+      Recording stoppedRec = null;
+      IList<Recording> recordings = Recording.ListAllActive();
+      bool found = false;
+      foreach (Recording actRec in _actualRecordings)
+      {
+        foreach (Recording rec in recordings)
+        {
+          if (rec.IdRecording == actRec.IdRecording)
+          {
+            found = true;
+            break;
+          }
+        }
+        if (found)
+        {
+          break;
+        }
+        else
+        {          
+          stoppedRec = Recording.Refresh(actRec.IdRecording);
+        }
+      }
+
+      if (stoppedRec != null)
+      {
+        UpdateActiveRecordings();
+      }
+      return stoppedRec;
+    }
+
+    private static Recording AddActiveRecordings()
+    {
+      Recording newRecAdded = null;
+      IList<Recording> recordings = Recording.ListAllActive();
+      if (_actualRecordings == null)
+      {
+        _actualRecordings = new List<Recording>();
+      }
+      foreach (Recording rec in recordings)
+      {
+        if (!_actualRecordings.Contains(rec))
+        {
+          _actualRecordings.Add(rec);
+          newRecAdded = rec;
+        }
+      }
+      return newRecAdded;
+    }
+
+    private static void UpdateActiveRecordings()
+    {
+      _actualRecordings = Recording.ListAllActive();
+    }
+
     private void LoadNotifies()
     {
       try
       {
         Log.Info("TvNotify:LoadNotifies");
-        IEnumerable<Program> prgs = ServiceAgents.Instance.ProgramServiceAgent.GetProgramsByState(ProgramState.Notify);
-        _notifiesList.Clear();
-        foreach (var program in prgs)
-        {
-          _notifiesList.Add(new ProgramBLL(program));
-        }
+        _notifiesList = Program.RetrieveAllNotifications();
+        _notifiedRecordings.Clear();
 
         if (_notifiesList != null)
         {
           Log.Info("TvNotify: {0} notifies", _notifiesList.Count);
         }
 
+        UpdateActiveRecordings();
       }
       catch (Exception e)
       {
@@ -198,13 +182,17 @@ namespace Mediaportal.TV.TvPlugin
       }
     }
 
-    private void Notify(string heading, string mainMsg, Channel channel)
+    private bool Notify(string heading, string mainMsg, Channel channel)
     {
       Log.Info("send rec notify");
-      var msg = new GUIMessage(GUIMessage.MessageType.GUI_MSG_NOTIFY_REC, 0, 0, 0, 0, 0, null)
-                  {Label = heading, Label2 = mainMsg, Object = channel};
+      GUIMessage msg = new GUIMessage(GUIMessage.MessageType.GUI_MSG_NOTIFY_REC, 0, 0, 0, 0, 0, null);
+      msg.Label = heading;
+      msg.Label2 = mainMsg;
+      msg.Object = channel;
       GUIGraphicsContext.SendMessage(msg);
+      msg = null;
       Log.Info("send rec notify done");
+      return true;
     }
 
     private void ProcessNotifies(DateTime preNotifySecs)
@@ -216,23 +204,21 @@ namespace Mediaportal.TV.TvPlugin
       }
       if (_notifiesList != null && _notifiesList.Count > 0)
       {
-        foreach (ProgramBLL program in _notifiesList)
+        foreach (Program program in _notifiesList)
         {
-          if (preNotifySecs > program.Entity.StartTime)
+          if (preNotifySecs > program.StartTime)
           {
-            Log.Info("Notify {0} on {1} start {2}", program.Entity.Title, program.Entity.Channel.DisplayName,
-                     program.Entity.StartTime);
+            Log.Info("Notify {0} on {1} start {2}", program.Title, program.ReferencedChannel().DisplayName,
+                     program.StartTime);
             program.Notify = false;
-            ServiceAgents.Instance.ProgramServiceAgent.SaveProgram(program.Entity);
-            var tvProg = new TVProgramDescription
-                           {
-                             Channel = program.Entity.Channel,
-                             Title = program.Entity.Title,
-                             Description = program.Entity.Description,
-                             Genre = TVUtil.GetCategory(program.Entity.ProgramCategory),
-                             StartTime = program.Entity.StartTime,
-                             EndTime = program.Entity.EndTime
-                           };
+            program.Persist();
+            TVProgramDescription tvProg = new TVProgramDescription();
+            tvProg.Channel = program.ReferencedChannel();
+            tvProg.Title = program.Title;
+            tvProg.Description = program.Description;
+            tvProg.Genre = program.Genre;
+            tvProg.StartTime = program.StartTime;
+            tvProg.EndTime = program.EndTime;
 
             _notifiesList.Remove(program);
             Log.Info("send notify");
@@ -244,6 +230,143 @@ namespace Mediaportal.TV.TvPlugin
             return;
           }
         }
+      }
+    }
+
+    private void ProcessRecordings(DateTime preNotifySecs)
+    {
+      //Log.Debug("TVPlugIn: Notifier checking for recording to start at {0}", preNotifySecs);
+      //if (g_Player.IsTV && TVHome.Card.IsTimeShifting && g_Player.Playing)
+      IList<Schedule> schedulesList = null;
+      //if (_enableRecNotification && g_Player.Playing)
+      if (_enableRecNotification)
+      {
+        if (TVHome.TvServer.IsTimeToRecord(preNotifySecs))
+        {
+          try
+          {
+            schedulesList = Schedule.ListAll();
+            foreach (Schedule rec in schedulesList)
+            {
+              bool bContinue = false;
+              //Check if alerady notified user
+              foreach (Schedule notifiedRec in _notifiedRecordings)
+              {
+                if (rec == notifiedRec)
+                {
+                  bContinue = true;
+                  break;
+                }
+              }
+              if (bContinue)
+                continue;
+
+              //Check if timing it's time 
+              Log.Debug("TVPlugIn: Notifier checking program {0}", rec.ProgramName);
+              if (TVHome.TvServer.IsTimeToRecord(preNotifySecs, rec.IdSchedule))
+              {
+                //check if freecard is available. 
+                //Log.Debug("TVPlugIn: Notify verified program {0} about to start recording. {1} / {2}", rec.ProgramName, rec.StartTime, preNotifySecs);
+                if (TVHome.Navigator.Channel.IdChannel != rec.IdChannel &&
+                    (int)TVHome.TvServer.GetChannelState(rec.IdChannel, _dummyuser) == 0) //not tunnable
+                {
+                  Log.Debug("TVPlugIn: No free card available for {0}. Notifying user.", rec.ProgramName);
+
+                  Notify(GUILocalizeStrings.Get(1004),
+                         String.Format("{0}. {1}", rec.ProgramName, GUILocalizeStrings.Get(200055)),
+                         TVHome.Navigator.Channel);
+
+                  _notifiedRecordings.Add(rec);
+                  return;
+                }
+              }
+            }
+          }
+          catch (Exception ex)
+          {
+            Log.Debug("Tv NotifyManager: Exception at recording notification {0}", ex.ToString());
+          }
+        }
+
+        //check if rec. has started
+        if (!_enableRecNotification)
+        {
+          return;
+        }
+
+        Recording newRecording = AddActiveRecordings();
+
+        if (newRecording != null && newRecording.IsRecording)
+        {
+          Schedule parentSchedule = newRecording.ReferencedSchedule();
+
+          if (parentSchedule != null && parentSchedule.IdSchedule > 0)
+          {
+            string endTime = string.Empty;
+            if (parentSchedule != null)
+            {
+              endTime = parentSchedule.EndTime.AddMinutes(parentSchedule.PostRecordInterval).ToString("t",
+                                                                                                      CultureInfo.
+                                                                                                        CurrentCulture.
+                                                                                                        DateTimeFormat);
+            }
+            string text = String.Format("{0} {1}-{2}",
+                                        newRecording.Title,
+                                        newRecording.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
+                                        endTime);
+            //Recording started            
+
+            TimeSpan tsStart = DateTime.Now - newRecording.StartTime;
+            // do not show rec. that have been started a while ago.
+            if (tsStart.TotalSeconds < 60)
+            {
+              Notify(GUILocalizeStrings.Get(1446), text, newRecording.ReferencedChannel());
+            }
+            return;
+          }
+        }
+        //check if rec. has ended.                
+        Recording stoppedRec = CheckForStoppedRecordings();
+        if (stoppedRec == null)
+        {
+          return;
+        }
+
+        TimeSpan tsEnd = DateTime.Now - stoppedRec.EndTime; // do not show rec. that have been stopped a while ago.
+        if (tsEnd.TotalSeconds > 60)
+        {
+          _actualRecordings.Remove(stoppedRec);
+          return;
+        }
+
+        string textPrg = "";
+        IList<Program> prgs = Program.RetrieveByTitleAndTimesInterval(stoppedRec.Title, stoppedRec.StartTime,
+                                                                      stoppedRec.EndTime);
+
+        Program prg = null;
+        if (prgs != null && prgs.Count > 0)
+        {
+          prg = prgs[0];
+        }
+        if (prg != null)
+        {
+          textPrg = String.Format("{0} {1}-{2}",
+                                  prg.Title,
+                                  prg.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
+                                  prg.EndTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat));
+        }
+        else
+        {
+          textPrg = String.Format("{0} {1}-{2}",
+                                  stoppedRec.Title,
+                                  stoppedRec.StartTime.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat),
+                                  DateTime.Now.ToString("t", CultureInfo.CurrentCulture.DateTimeFormat));
+        }
+        //Recording stopped:                            
+        Notify(GUILocalizeStrings.Get(1447), textPrg, stoppedRec.ReferencedChannel());
+        _actualRecordings.Remove(stoppedRec);
+
+        return; //we do not want to show any more notifications.        
       }
     }
 
@@ -263,6 +386,11 @@ namespace Mediaportal.TV.TvPlugin
 
         _busy = true;
 
+        if (_actualRecordings == null)
+        {
+          AddActiveRecordings();
+        }
+
         if (!TVHome.Connected)
         {
           return;
@@ -271,6 +399,7 @@ namespace Mediaportal.TV.TvPlugin
       
         DateTime preNotifySecs = DateTime.Now.AddSeconds(_preNotifyConfig);
         ProcessNotifies(preNotifySecs);
+        ProcessRecordings(preNotifySecs);
       }
       catch (Exception ex)
       {        
@@ -281,27 +410,5 @@ namespace Mediaportal.TV.TvPlugin
         _busy = false;
       }
     }
-
-    #region Implementation of ITvServerEventEventCallbacks
-
-    public void CallbackTvServerEvent(TvServerEventArgs eventArgs)
-    {
-      switch (eventArgs.EventType)
-      {
-        case TvServerEventType.RecordingEnded:
-          OnRecordingEnded(eventArgs.Recording);
-          break;
-
-        case TvServerEventType.RecordingStarted:
-          OnRecordingStarted(eventArgs.Recording);
-          break;
-
-        case TvServerEventType.RecordingFailed:
-          OnRecordingFailed(eventArgs.Schedule);
-          break;
-      }     
-    }
-
-    #endregion
   }
 }

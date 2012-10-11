@@ -69,6 +69,7 @@
     <Compile Include="Compatibility\CompatibleVersionAttribute.cs" />
     <Compile Include="Compatibility\SubsystemVersionAttribute.cs" />
     <Compile Include="Compatibility\UsesSubsystemAttribute.cs" />
+    <Compile Include="NativeMethods.cs" />
     <Compile Include="ExtensionMethods\ArrayExtMethods.cs" />
     <Compile Include="ExtensionMethods\DictionaryExtMethods.cs" />
     <Compile Include="ExtensionMethods\DisposeHelper.cs" />

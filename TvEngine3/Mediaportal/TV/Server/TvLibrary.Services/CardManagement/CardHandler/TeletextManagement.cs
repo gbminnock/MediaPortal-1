@@ -19,14 +19,13 @@
 #endregion
 
 using System;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using Mediaportal.TV.Server.TVService.Interfaces.CardHandler;
-using Mediaportal.TV.Server.TVService.Interfaces.Services;
+using TvLibrary.Interfaces;
+using TvLibrary.Log;
+using TvControl;
 
-namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
+namespace TvService
 {
-  public class TeletextManagement : ITeletextManagement
+  public class TeletextManagement
   {
     private readonly ITvCardHandler _cardHandler;
 
@@ -48,22 +47,33 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
       try
       {
-        bool grabTeletext = false;
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return false;
-        }        
-        
-        _cardHandler.UserManagement.RefreshUser(ref user);
-
-
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(_cardHandler.UserManagement.GetTimeshiftingChannelId(user.Name));
-        if (subchannel != null)
+        try
         {
-          grabTeletext = subchannel.GrabTeletext;              
+          RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+          if (!RemoteControl.Instance.CardPresent(_cardHandler.DataBaseCard.IdCard))
+            return false;
+          if (_cardHandler.IsLocal == false)
+          {
+            return RemoteControl.Instance.IsGrabbingTeletext(user);
+          }
+        }
+        catch (Exception)
+        {
+          Log.Error("card: unable to connect to slave controller at:{0}",
+                    _cardHandler.DataBaseCard.ReferencedServer().HostName);
+          return false;
         }
 
-        return grabTeletext;
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return false;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
+        if (subchannel == null)
+          return false;
+        return subchannel.GrabTeletext;
       }
       catch (Exception ex)
       {
@@ -76,42 +86,74 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// Returns if the channel to which the card is currently tuned
     /// has teletext or not
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">User</param>
     /// <returns>yes if channel has teletext otherwise false</returns>
-    public bool HasTeletext(string userName)
+    public bool HasTeletext(IUser user)
     {
-      bool hasTeletext = false;
       if (_cardHandler.DataBaseCard.Enabled == false)
+        return false;
+
+      try
       {
+        RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+        if (!RemoteControl.Instance.CardPresent(_cardHandler.DataBaseCard.IdCard))
+          return false;
+        if (_cardHandler.IsLocal == false)
+        {
+          return RemoteControl.Instance.HasTeletext(user);
+        }
+      }
+      catch (Exception)
+      {
+        Log.Error("card: unable to connect to slave controller at:{0}",
+                  _cardHandler.DataBaseCard.ReferencedServer().HostName);
         return false;
       }
-      
-      ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(_cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-      if (subchannel != null)
-      {
-        hasTeletext = subchannel.HasTeletext;
-      }          
 
-      return hasTeletext;
+      ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+      if (context == null)
+        return false;
+      context.GetUser(ref user);
+      ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
+      if (subchannel == null)
+        return false;
+      return subchannel.HasTeletext;
     }
 
     /// <summary>
     /// Returns the rotation time for a specific teletext page
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">User</param>
     /// <param name="pageNumber">The pagenumber (0x100-0x899)</param>
     /// <returns>timespan containing the rotation time</returns>
-    public TimeSpan TeletextRotation(string userName, int pageNumber)
+    public TimeSpan TeletextRotation(IUser user, int pageNumber)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return new TimeSpan(0, 0, 0, 15);
-        }                       
+        try
+        {
+          RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+          if (!RemoteControl.Instance.CardPresent(_cardHandler.DataBaseCard.IdCard))
+            return new TimeSpan(0, 0, 0, 15);
+          if (_cardHandler.IsLocal == false)
+          {
+            return RemoteControl.Instance.TeletextRotation(user, pageNumber);
+          }
+        }
+        catch (Exception)
+        {
+          Log.Error("card: unable to connect to slave controller at:{0}",
+                    _cardHandler.DataBaseCard.ReferencedServer().HostName);
+          return new TimeSpan(0, 0, 0, 15);
+        }
 
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return new TimeSpan(0, 0, 0, 15);
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return new TimeSpan(0, 0, 0, 15);
         return subchannel.TeletextDecoder.RotationTime(pageNumber);
@@ -126,19 +168,36 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// turn on/off teletext grabbing
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">User</param>
     /// <param name="onOff">turn on/off teletext grabbing</param>
-    public void GrabTeletext(string userName, bool onOff)
+    public void GrabTeletext(IUser user, bool onOff)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return;
-        }       
-                
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        try
+        {
+          RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+          if (!RemoteControl.Instance.CardPresent(_cardHandler.DataBaseCard.IdCard))
+            return;
+          if (_cardHandler.IsLocal == false)
+          {
+            RemoteControl.Instance.GrabTeletext(user, onOff);
+          }
+        }
+        catch (Exception)
+        {
+          Log.Error("card: unable to connect to slave controller at:{0}",
+                    _cardHandler.DataBaseCard.ReferencedServer().HostName);
+          return;
+        }
+
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return;
         subchannel.GrabTeletext = onOff;
@@ -153,21 +212,38 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the teletext page.
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">User</param>
     /// <param name="pageNumber">The page number.</param>
     /// <param name="subPageNumber">The sub page number.</param>
     /// <returns></returns>
-    public byte[] GetTeletextPage(string userName, int pageNumber, int subPageNumber)
+    public byte[] GetTeletextPage(IUser user, int pageNumber, int subPageNumber)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return new byte[] {1};
-        }      
-        
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        try
+        {
+          RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+          if (!RemoteControl.Instance.CardPresent(_cardHandler.DataBaseCard.IdCard))
+            return new byte[] {1};
+          if (_cardHandler.IsLocal == false)
+          {
+            return RemoteControl.Instance.GetTeletextPage(user, pageNumber, subPageNumber);
+          }
+        }
+        catch (Exception)
+        {
+          Log.Error("card: unable to connect to slave controller at:{0}",
+                    _cardHandler.DataBaseCard.ReferencedServer().HostName);
+          return new byte[] {1};
+        }
+
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return new byte[] {1};
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return new byte[] {1};
         if (subchannel.TeletextDecoder == null)
@@ -184,20 +260,34 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the number of subpages for a teletext page.
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">User</param>
     /// <param name="pageNumber">The page number.</param>
     /// <returns></returns>
-    public int SubPageCount(string userName, int pageNumber)
+    public int SubPageCount(IUser user, int pageNumber)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return -1;
+        if (_cardHandler.IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.SubPageCount(user, pageNumber);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}",
+                      _cardHandler.DataBaseCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-                
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return -1;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return -1;
         if (subchannel.TeletextDecoder == null)
@@ -214,20 +304,33 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the teletext pagenumber for the red button
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>Teletext pagenumber for the red button</returns>
-    public int GetTeletextRedPageNumber(string userName)
+    public int GetTeletextRedPageNumber(IUser user)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return -1;
+        if (_cardHandler.IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.GetTeletextRedPageNumber(user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}",
+                      _cardHandler.DataBaseCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-               
-
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return -1;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return -1;
         if (subchannel.TeletextDecoder == null)
@@ -244,18 +347,33 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the teletext pagenumber for the green button
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>Teletext pagenumber for the green button</returns>
-    public int GetTeletextGreenPageNumber(string userName)
+    public int GetTeletextGreenPageNumber(IUser user)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return -1;
+        if (_cardHandler.IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.GetTeletextGreenPageNumber(user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}",
+                      _cardHandler.DataBaseCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return -1;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return -1;
         if (subchannel.TeletextDecoder == null)
@@ -272,19 +390,33 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the teletext pagenumber for the yellow button
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>Teletext pagenumber for the yellow button</returns>
-    public int GetTeletextYellowPageNumber(string userName)
+    public int GetTeletextYellowPageNumber(IUser user)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return -1;
+        if (_cardHandler.IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.GetTeletextYellowPageNumber(user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}",
+                      _cardHandler.DataBaseCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-        
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return -1;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return -1;
         if (subchannel.TeletextDecoder == null)
@@ -301,19 +433,33 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the teletext pagenumber for the blue button
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>Teletext pagenumber for the blue button</returns>
-    public int GetTeletextBluePageNumber(string userName)
+    public int GetTeletextBluePageNumber(IUser user)
     {
       try
       {
         if (_cardHandler.DataBaseCard.Enabled == false)
-        {
           return -1;
+        if (_cardHandler.IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _cardHandler.DataBaseCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.GetTeletextBluePageNumber(user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}",
+                      _cardHandler.DataBaseCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-                      
-        int subchannelId = _cardHandler.UserManagement.GetSubChannelIdByChannelId(userName, _cardHandler.UserManagement.GetTimeshiftingSubChannel(userName));
-        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(subchannelId);
+        ITvCardContext context = _cardHandler.Card.Context as ITvCardContext;
+        if (context == null)
+          return -1;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _cardHandler.Card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return -1;
         if (subchannel.TeletextDecoder == null)

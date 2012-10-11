@@ -21,6 +21,9 @@
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using SetupControls;
+using TvDatabase;
+using TvLibrary.Implementations;
 using Mediaportal.TV.Server.SetupControls;
 using Mediaportal.TV.Server.TVDatabase.Entities;
 using Mediaportal.TV.Server.TVDatabase.Entities.Factories;

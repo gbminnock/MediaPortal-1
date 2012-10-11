@@ -19,15 +19,15 @@
  *
  */
 #include "..\..\shared\packetsync.h"
-#include "videoanalyzer.h"
-#include "channelscan.h"
+#include "ChannelScan.h"
+#include "EncryptionAnalyser.h"
 #include "epgscanner.h"
-#include "pmtgrabber.h"
+#include "PmtGrabber.h"
 #include "DiskRecorder.h"
 #include "teletextgrabber.h"
 #include "cagrabber.h"
 #include "channellinkagescanner.h"
-#include "tschannel.h"
+#include "TsChannel.h"
 #include "videoaudioobserver.h"
 #include <map>
 #include <vector>
@@ -48,19 +48,16 @@ DECLARE_INTERFACE_(ITSFilter, IUnknown)
   STDMETHOD(DeleteChannel)(THIS_ int handle)PURE;
   STDMETHOD(DeleteAllChannels)()PURE;
 
-	STDMETHOD(AnalyzerSetVideoPid)(THIS_ int handle, int videoPid)PURE;
-	STDMETHOD(AnalyzerGetVideoPid)(THIS_ int handle,  int* videoPid)PURE;
-	STDMETHOD(AnalyzerSetAudioPid)(THIS_ int handle,  int audioPid)PURE;
-	STDMETHOD(AnalyzerGetAudioPid)(THIS_ int handle,  int* audioPid)PURE;
-	STDMETHOD(AnalyzerIsVideoEncrypted)(THIS_ int handle,  int* yesNo)PURE;
-	STDMETHOD(AnalyzerIsAudioEncrypted)(THIS_ int handle,  int* yesNo)PURE;
-	STDMETHOD(AnalyzerReset)(THIS_ int handle )PURE;
+	STDMETHOD(AnalyserAddPid)(THIS_ int handle, int pid)PURE;
+	STDMETHOD(AnalyserRemovePid)(THIS_ int handle, int pid)PURE;
+	STDMETHOD(AnalyserGetPidCount)(THIS_ int handle, int* pidCount)PURE;
+	STDMETHOD(AnalyserGetPid)(THIS_ int handle, int pidIdx, int* pid, EncryptionState* encryptionState)PURE;
+	STDMETHOD(AnalyserSetCallBack)(THIS_ int handle, IEncryptionStateChangeCallBack* callBack)PURE;
+	STDMETHOD(AnalyserReset)(THIS_ int handle)PURE;
 
-	
-	STDMETHOD(PmtSetPmtPid)(THIS_ int handle,  int pmtPid, long serviceId);
-	STDMETHOD(PmtSetCallBack)(THIS_ int handle,   IPMTCallback* callback);
-	STDMETHOD(PmtGetPMTData) (THIS_ int handle,   BYTE *pmtData);
-
+	STDMETHOD(PmtSetPmtPid)(THIS_ int handle, int pmtPid, int serviceId);
+	STDMETHOD(PmtSetCallBack)(THIS_ int handle, IPmtCallBack* callBack);
+	STDMETHOD(PmtGetPmtData)(THIS_ int handle, BYTE* pmtData);
 	
   STDMETHOD(RecordSetRecordingFileNameW)(THIS_ int handle,wchar_t* pwszFileName)PURE;
   STDMETHOD(RecordStartRecord)(THIS_ int handle)PURE;
@@ -84,9 +81,9 @@ DECLARE_INTERFACE_(ITSFilter, IUnknown)
 	STDMETHOD(TTxSetTeletextPid)(THIS_ int handle,int teletextPid)PURE;
 	STDMETHOD(TTxSetCallBack)(THIS_ int handle,ITeletextCallBack* callback)PURE;
 
-  STDMETHOD(CaSetCallBack)(THIS_ int handle,ICACallback* callback)PURE;
-	STDMETHOD(CaGetCaData) (THIS_ int handle,BYTE *caData)PURE;
 	STDMETHOD(CaReset)(THIS_ int handle)PURE;
+  STDMETHOD(CaSetCallBack)(THIS_ int handle, ICaCallBack* callBack)PURE;
+	STDMETHOD(CaGetCaData)(THIS_ int handle, BYTE* caData)PURE;
 
   STDMETHOD(GetStreamQualityCounters)(THIS_ int handle, int* totalTsBytes, int* totalRecordingBytes, 
       int* TsDiscontinuity, int* recordingDiscontinuity)PURE;
@@ -170,18 +167,16 @@ public:
     STDMETHODIMP DeleteChannel( int handle);
     STDMETHODIMP DeleteAllChannels();
 
-		STDMETHODIMP AnalyzerSetVideoPid(int handle, int videoPid);
-		STDMETHODIMP AnalyzerGetVideoPid(int handle,  int* videoPid);
-		STDMETHODIMP AnalyzerSetAudioPid(int handle,  int audioPid);
-		STDMETHODIMP AnalyzerGetAudioPid(int handle,  int* audioPid);
-		STDMETHODIMP AnalyzerIsVideoEncrypted(int handle,  int* yesNo);
-		STDMETHODIMP AnalyzerIsAudioEncrypted(int handle,  int* yesNo);
-		STDMETHODIMP AnalyzerReset(int handle );
+		STDMETHODIMP AnalyserAddPid(int handle, int pid);
+		STDMETHODIMP AnalyserRemovePid(int handle, int pid);
+		STDMETHODIMP AnalyserGetPidCount(int handle, int* pidCount);
+		STDMETHODIMP AnalyserGetPid(int handle, int pidIdx, int* pid, EncryptionState* encryptionState);
+		STDMETHODIMP AnalyserSetCallBack(int handle, IEncryptionStateChangeCallBack* callBack);
+		STDMETHODIMP AnalyserReset(int handle);
 
-		STDMETHODIMP PmtSetPmtPid(int handle,int pmtPid, long serviceId);
-		STDMETHODIMP PmtSetCallBack(int handle,IPMTCallback* callback);
-		STDMETHODIMP PmtGetPMTData (int handle,BYTE *pmtData);
-
+		STDMETHODIMP PmtSetPmtPid(int handle, int pmtPid, int serviceId);
+		STDMETHODIMP PmtSetCallBack(int handle, IPmtCallBack* callBack);
+		STDMETHODIMP PmtGetPmtData(int handle, BYTE* pmtData);
 
 		STDMETHODIMP RecordSetRecordingFileNameW( int handle,wchar_t* pszFileName);
 		STDMETHODIMP RecordStartRecord( int handle);
@@ -205,9 +200,10 @@ public:
 		STDMETHODIMP TTxSetTeletextPid( int handle,int teletextPid);
 		STDMETHODIMP TTxSetCallBack( int handle,ITeletextCallBack* callback);
 
-    STDMETHODIMP CaSetCallBack(int handle,ICACallback* callback);
-	  STDMETHODIMP CaGetCaData(int handle,BYTE *caData);
-	  STDMETHODIMP CaReset(int handle);
+		STDMETHODIMP CaReset(int handle);
+		STDMETHODIMP CaSetCallBack(int handle, ICaCallBack* callBack);
+		STDMETHODIMP CaGetCaData(int handle, BYTE* caData);
+
     STDMETHODIMP GetStreamQualityCounters(int handle, int* totalTsBytes, int* totalRecordingBytes, 
       int* TsDiscontinuity, int* recordingDiscontinuity);
 

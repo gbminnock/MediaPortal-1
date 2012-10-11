@@ -1,6 +1,6 @@
 /*
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,46 +24,21 @@
 
 using namespace std;
 
-typedef struct stPidInfo2
-{
-public:
-	int elementaryPid;
-	int fakePid;
-	int streamType;
-	int logicalStreamType;
-	byte rawDescriptorData[1024];
-	int rawDescriptorSize;
-	bool seenStart;
-	byte TsPktQ[4][188] ;
-	int  NPktQ ;
-	CTsHeader TsHeaderQ[4] ;
-	byte PesHeader[19] ;
-	int  PesHeaderLength ;
-	byte ccPrev ;
-	byte m_Pkt[188] ;
-}PidInfo2;
-
-typedef vector<stPidInfo2>::iterator ivecPidInfo2;
-
 class IPmtCallBack2
 {
-public:
-	virtual void OnPmtReceived2(int pid, int serviceId, int pcrPid, bool hasCaDescriptor, vector<PidInfo2> info)=0;
+  public:
+    virtual void OnPmtReceived(const CPidTable& pidInfo) = 0;
 };
 
-class CPmtParser: public CBasePmtParser
+class CPmtParser : public CBasePmtParser
 {
-public:
-  CPmtParser(void);
-  virtual ~CPmtParser(void);
-	bool		DecodePmt(CSection sections, int& pcr_pid, bool& hasCaDescriptor, vector<PidInfo2>& pidInfos);
-	void		OnNewSection(CSection& sections);
-	void    SetPmtCallBack2(IPmtCallBack2* callback);
-	void	  Reset();
+  public:
+    CPmtParser(void);
+    virtual ~CPmtParser(void);
+    void OnNewSection(CSection& sections);
+    void SetCallBack(IPmtCallBack2* callBack);
+    void Reset();
 
-private:
-	IPmtCallBack2* m_pmtCallback2;
-  //FIXME: this older code version is only for backward compatibility with dependent classes.
-  //       proper fix is to change code of all classes that depend on PidInfo2 in favour of CPidTable!
-	vector<PidInfo2> m_pidInfos2;
+  private:
+    IPmtCallBack2* m_pCallBack;
 };

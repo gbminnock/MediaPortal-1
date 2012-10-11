@@ -70,25 +70,28 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
   }
 
   /// <summary>
-  /// class holding all tuning details for DVBC
+  /// A class capable of holding the tuning parameter details required to tune a DVB-C channel.
   /// </summary>
   [DataContract]  
   public class DVBCChannel : DVBBaseChannel
   {
     #region variables
 
+    private int _symbolRate = -1;
+    private ModulationType _modulation = ModulationType.Mod64Qam;
+
+    #endregion
+
+    #region constructors
+
     /// <summary>
-    /// returns basic tuning info for current channel
+    /// Initialise a new instance of the <see cref="DVBCChannel"/> class.
     /// </summary>
-    public DVBCTuning TuningInfo
+    public DVBCChannel()
+      : base()
     {
-      get { return new DVBCTuning(Frequency, ModulationType, SymbolRate); }
-      set
-      {
-        Frequency = value.Frequency;
-        ModulationType = value.ModulationType;
-        SymbolRate = value.SymbolRate;
-      }
+      _symbolRate = 6875;
+      _modulation = ModulationType.Mod64Qam;
     }
 
     [DataMember]
@@ -100,27 +103,32 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #endregion
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DVBCChannel"/> class.
+    /// Initialise a new instance of the <see cref="DVBCChannel"/> class using an existing instance.
     /// </summary>
-    public DVBCChannel()
+    /// <param name="channel">The existing channel instance.</param>
+    public DVBCChannel(DVBCChannel channel)
+      : base(channel)
     {
-      ModulationType = ModulationType.Mod64Qam;
-      SymbolRate = 6875;
+      _modulation = channel.ModulationType;
+      _symbolRate = channel.SymbolRate;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DVBCChannel"/> class.
+    /// Initialise a new instance of the <see cref="DVBCChannel"/> class using a <see cref="DVBCTuning"/>
+    /// instance.
     /// </summary>
-    /// <param name="tuning">Tuning detail</param>
-    public DVBCChannel(DVBCTuning tuning)
+    /// <param name="tuningParameters">Core channel tuning parameters.</param>
+    public DVBCChannel(DVBCTuning tuningParameters)
     {
-      TuningInfo = tuning;
+      TuningInfo = tuningParameters;
     }
+
+    #endregion
 
     #region properties
 
     /// <summary>
-    /// gets/sets the symbolrate for this channel
+    /// Get/set the symbol rate for the channel's multiplex. The symbol rate unit is ks/s.
     /// </summary>
     public int SymbolRate
     {
@@ -129,7 +137,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the ModulationType for this channel
+    /// Get/set the modulation scheme for the channel's multiplex.
     /// </summary>
     public ModulationType ModulationType
     {
@@ -137,13 +145,30 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       set { _modulation = value; }
     }
 
+    /// <summary>
+    /// Get/set the core tuning parameters for the channel's multiplex.
+    /// </summary>
+    public DVBCTuning TuningInfo
+    {
+      get
+      {
+        return new DVBCTuning(Frequency, _modulation, _symbolRate);
+      }
+      set
+      {
+        Frequency = value.Frequency;
+        _symbolRate = value.SymbolRate;
+        _modulation = value.ModulationType;
+      }
+    }
+
     #endregion
 
     /// <summary>
-    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// Get a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
     /// </returns>
     public override string ToString()
     {
@@ -152,17 +177,17 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       return line;
     }
 
-
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
     /// <returns>
-    /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
+    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
     /// </returns>
     public override bool Equals(object obj)
     {
-      if ((obj as DVBCChannel) == null)
+      DVBCChannel ch = obj as DVBCChannel;
+      if (ch == null)
       {
         return false;
       }
@@ -170,12 +195,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return false;
       }
-      DVBCChannel ch = obj as DVBCChannel;
-      if (ch.ModulationType != ModulationType)
+
+      if (ch.SymbolRate != _symbolRate)
       {
         return false;
       }
-      if (ch.SymbolRate != SymbolRate)
+      if (ch.ModulationType != _modulation)
       {
         return false;
       }
@@ -186,19 +211,17 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     /// <summary>
     /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
     /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"></see>.
-    /// </returns>
+    /// <returns>a hash code for the current <see cref="T:System.Object"></see></returns>
     public override int GetHashCode()
     {
-      return base.GetHashCode() ^ _modulation.GetHashCode() ^ _symbolRate.GetHashCode();
+      return base.GetHashCode() ^ _symbolRate.GetHashCode() ^ _modulation.GetHashCode();
     }
 
     /// <summary>
-    /// Checks if the given channel and this instance are on the different transponder
+    /// Check if the given channel and this instance are on different transponders.
     /// </summary>
-    /// <param name="channel">Channel to check</param>
-    /// <returns>true, if the channels are on the same transponder</returns>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
     public override bool IsDifferentTransponder(IChannel channel)
     {
       DVBCChannel dvbcChannel = channel as DVBCChannel;
@@ -207,8 +230,8 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
         return true;
       }
       return dvbcChannel.Frequency != Frequency ||
-             dvbcChannel.ModulationType != ModulationType ||
-             dvbcChannel.SymbolRate != SymbolRate;
+             dvbcChannel.SymbolRate != _symbolRate ||
+             dvbcChannel.ModulationType != _modulation;
     }
   }
 }

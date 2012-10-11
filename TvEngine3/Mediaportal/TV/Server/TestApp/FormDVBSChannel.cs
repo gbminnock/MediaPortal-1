@@ -44,9 +44,7 @@ namespace Mediaportal.TV.Server.TestApp
     {
       get
       {
-        _channel.BandType = BandType.Universal;
-        _channel.SwitchingFrequency = -1;
-
+        _channel.LnbType = LnbType.Universal;
         return _channel;
       }
       set
@@ -57,8 +55,7 @@ namespace Mediaportal.TV.Server.TestApp
         textBoxTSID.Text = _channel.TransportId.ToString();
         textBoxSID.Text = _channel.ServiceId.ToString();
         textBoxSymbolRate.Text = _channel.SymbolRate.ToString();
-        textBoxSwitch.Text = _channel.SwitchingFrequency.ToString();
-        comboBoxDisEqc.SelectedIndex = (int)_channel.DisEqc;
+        comboBoxDisEqc.SelectedIndex = (int)_channel.Diseqc;
         comboBoxPol.SelectedIndex = _channel.Polarisation == Polarisation.LinearH ? 0 : 1;
       }
     }
@@ -70,8 +67,7 @@ namespace Mediaportal.TV.Server.TestApp
       _channel.TransportId = Int32.Parse(textBoxTSID.Text);
       _channel.ServiceId = Int32.Parse(textBoxSID.Text);
       _channel.SymbolRate = Int32.Parse(textBoxSymbolRate.Text);
-      _channel.SwitchingFrequency = Int32.Parse(textBoxSwitch.Text);
-      _channel.DisEqc = (DisEqcType)comboBoxDisEqc.SelectedIndex;
+      _channel.Diseqc = (DiseqcPort)comboBoxDisEqc.SelectedIndex;
       _channel.Polarisation = comboBoxPol.SelectedIndex == 0 ? Polarisation.LinearH : Polarisation.LinearV;
 
       Close();

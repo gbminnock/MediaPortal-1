@@ -26,7 +26,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 {
   /// <summary>
-  /// class holding all tuning details for ATSC
+  /// A class capable of holding the tuning parameter details required to tune an ATSC or QAM channel.
   /// </summary>
   [DataContract]  
   public class ATSCChannel : DVBBaseChannel
@@ -47,43 +47,38 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 
     #endregion
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ATSCChannel"/> class.
-    /// </summary>
-    /// <param name="chan">The chan.</param>
-    public ATSCChannel(ATSCChannel chan)
-      : base(chan)
-    {
-      _majorChannel = chan.MajorChannel;
-      _minorChannel = chan.MinorChannel;
-      _physicalChannel = chan.PhysicalChannel;
-      _modulation = chan.ModulationType;
-    }
+    #region constructors
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ATSCChannel"/> class.
+    /// Initialise a new instance of the <see cref="ATSCChannel"/> class.
     /// </summary>
     public ATSCChannel()
     {
+      _physicalChannel = -1;
       _majorChannel = -1;
       _minorChannel = -1;
-      _physicalChannel = -1;
       _modulation = ModulationType.Mod8Vsb;
     }
+
+    /// <summary>
+    /// Initialise a new instance of the <see cref="ATSCChannel"/> class using an existing instance.
+    /// </summary>
+    /// <param name="channel">The existing channel instance.</param>
+    public ATSCChannel(ATSCChannel channel)
+      : base(channel)
+    {
+      _physicalChannel = channel.PhysicalChannel;
+      _majorChannel = channel.MajorChannel;
+      _minorChannel = channel.MinorChannel;
+      _modulation = channel.ModulationType;
+    }
+
+    #endregion
 
     #region properties
 
     /// <summary>
-    /// gets/sets the modulation type
-    /// </summary>
-    public ModulationType ModulationType
-    {
-      get { return _modulation; }
-      set { _modulation = value; }
-    }
-
-    /// <summary>
-    /// gets/sets the physical channel
+    /// Get/set the physical channel number for the channel's transmitter.
     /// </summary>
     public int PhysicalChannel
     {
@@ -92,7 +87,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the major channel
+    /// Get/set the channel's major channel number.
     /// </summary>
     public int MajorChannel
     {
@@ -101,7 +96,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the minor channel
+    /// Get/set the channel's minor channel number.
     /// </summary>
     public int MinorChannel
     {
@@ -109,12 +104,23 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       set { _minorChannel = value; }
     }
 
+    /// <summary>
+    /// Get/set the modulation scheme for the channel's transmitter.
+    /// </summary>
+    public ModulationType ModulationType
+    {
+      get { return _modulation; }
+      set { _modulation = value; }
+    }
+
     #endregion
 
     /// <summary>
-    /// Toes the string.
+    /// Get a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
+    /// </returns>
     public override string ToString()
     {
       return String.Format("ATSC:{0} phys:{1} maj:{2} min:{3} mod:{4}", base.ToString(), _physicalChannel, _majorChannel,
@@ -122,13 +128,16 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// Equalses the specified obj.
+    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
-    /// <param name="obj">The obj.</param>
-    /// <returns></returns>
+    /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
+    /// <returns>
+    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
+    /// </returns>
     public override bool Equals(object obj)
     {
-      if ((obj as ATSCChannel) == null)
+      ATSCChannel ch = obj as ATSCChannel;
+      if (ch == null)
       {
         return false;
       }
@@ -136,43 +145,42 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return false;
       }
-      ATSCChannel ch = obj as ATSCChannel;
-      if (ch.MajorChannel != MajorChannel)
+
+      if (ch.PhysicalChannel != _physicalChannel)
       {
         return false;
       }
-      if (ch.MinorChannel != MinorChannel)
+      if (ch.MajorChannel != _majorChannel)
       {
         return false;
       }
-      if (ch.ModulationType != ModulationType)
+      if (ch.MinorChannel != _minorChannel)
       {
         return false;
       }
-      if (ch.PhysicalChannel != PhysicalChannel)
+      if (ch.ModulationType != _modulation)
       {
         return false;
       }
+
       return true;
     }
 
     /// <summary>
     /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
     /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"></see>.
-    /// </returns>
+    /// <returns>a hash code for the current <see cref="T:System.Object"></see></returns>
     public override int GetHashCode()
     {
       return base.GetHashCode() ^ _physicalChannel.GetHashCode() ^ _majorChannel.GetHashCode() ^
-             _minorChannel.GetHashCode() ^ _modulation.GetHashCode();
+            _minorChannel.GetHashCode() ^ _modulation.GetHashCode();
     }
 
     /// <summary>
-    /// Checks if the given channel and this instance are on the different transponder
+    /// Check if the given channel and this instance are on different transponders.
     /// </summary>
-    /// <param name="channel">Channel to check</param>
-    /// <returns>true, if the channels are on the same transponder</returns>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
     public override bool IsDifferentTransponder(IChannel channel)
     {
       ATSCChannel atscChannel = channel as ATSCChannel;
@@ -180,9 +188,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return true;
       }
-      return atscChannel.MajorChannel != MajorChannel ||
-             atscChannel.MinorChannel != MinorChannel ||
-             atscChannel.PhysicalChannel != PhysicalChannel;
+
+      if (_modulation != atscChannel.ModulationType)
+      {
+        return true;
+      }
+
+      // ATSC (over-the-air digital television).
+      if (_modulation == ModulationType.Mod8Vsb || _modulation == ModulationType.Mod16Vsb)
+      {
+        return atscChannel.PhysicalChannel != _physicalChannel;
+      }
+      // QAM (cable television).
+      return atscChannel.Frequency != Frequency;
     }
   }
 }

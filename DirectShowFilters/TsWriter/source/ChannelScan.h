@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,97 +18,207 @@
  *  http://www.gnu.org/copyleft/gpl.html
  *
  */
-#include "patparser.h"
+#include <Windows.h>
+#include <map>
+#include <vector>
 #include "criticalsection.h"
 #include "entercriticalsection.h"
-#include "nitdecoder.h"
+#include "PatParser.h"
+#include "PmtParser.h"
+#include "SdtParser.h"
+#include "NitParser.h"
+#include "BatParser.h"
+#include "VctParser.h"
+#include "EncryptionAnalyser.h"
 
 using namespace Mediaportal;
 
 #pragma once
 
-
+// Enum specifying possible broadcast standards or transport stream types.
+enum BroadcastStandard
+{
+	BroadcastStandardNotSet = -1,
+  Dvb = 0,
+  Atsc = 1,
+  Scte = 2,   // North American cable
+  Isdb = 3
+};
 
 // {1663DC42-D169-41da-BCE2-EEEC482CB9FB}
-DEFINE_GUID(IID_ITSChannelScan, 0x1663dc42, 0xd169, 0x41da, 0xbc, 0xe2, 0xee, 0xec, 0x48, 0x2c, 0xb9, 0xfb);
+DEFINE_GUID(IID_ITsChannelScan, 0x1663dc42, 0xd169, 0x41da, 0xbc, 0xe2, 0xee, 0xec, 0x48, 0x2c, 0xb9, 0xfb);
 
-DECLARE_INTERFACE_(ITSChannelScan, IUnknown)
+DECLARE_INTERFACE_(IChannelScanCallBack, IUnknown)
 {
-	STDMETHOD(Start)(THIS_ bool waitForVCT)PURE;
-	STDMETHOD(Stop)(THIS_)PURE;
-	STDMETHOD(GetCount)(THIS_ int* channelCount)PURE;
-	STDMETHOD(IsReady)(THIS_ BOOL* yesNo)PURE;
-	STDMETHOD(GetChannel)(THIS_ int index,
-										 long* networkId,
-										 long* transportId,
-										 long* serviceId,
-										 int* majorChannel,
-										 int* minorChannel,
-										 int* frequency,
-										 int* lcn,
-										 int* freeCAMode,
-										 int* serviceType,
-										 int* modulation,
-										 char** providerName,
-										 char** serviceName,
-										 int* pmtPid,
-										 int* hasVideo,
-										 int* hasAudio,
-										 int* hasCaDescriptor)PURE;
-	STDMETHOD(SetCallBack)(THIS_ IChannelScanCallback* callback)PURE;
+  STDMETHOD(OnScannerDone)()PURE;
+};
 
-	STDMETHOD(ScanNIT)(THIS_)PURE;
-	STDMETHOD(StopNIT)(THIS_)PURE;
-	STDMETHOD(GetNITCount)(THIS_ int* transponderCount)PURE;
-	STDMETHOD(GetNITChannel)(THIS_ int channel,int* type,int* frequency,int *polarisation, int* modulation, int* symbolrate, int* bandwidth, int* fecInner, int* rollOff, char** networkName)PURE;
+DECLARE_INTERFACE_(ITsChannelScan, IUnknown)
+{
+  STDMETHOD(SetCallBack)(THIS_ IChannelScanCallBack* callBack)PURE;
 
+  // SDT/VCT transponder-by-transponder scanning
+  STDMETHOD(ScanStream)(THIS_ BroadcastStandard broadcastStandard)PURE;
+  STDMETHOD(StopStreamScan)(THIS_)PURE;
+  STDMETHOD(GetServiceCount)(THIS_ int* serviceCount)PURE;
+  STDMETHOD(GetServiceDetail)(THIS_ int index,
+                               int* originalNetworkId,
+                               int* transportStreamId,
+                               int* serviceId,
+                               char** serviceName,
+                               char** providerName,
+                               char** logicalChannelNumber,
+                               int* serviceType,
+                               int* videoStreamCount,
+                               int* audioStreamCount,
+                               bool* isHighDefinition,
+                               bool* isEncrypted,
+                               bool* isRunning,
+                               int* pmtPid,
+                               int* previousOriginalNetworkId,
+                               int* previousTransportStreamId,
+                               int* previousServiceId,
+                               int* networkIdCount,
+                               byte** networkIds,
+                               int* bouquetIdCount,
+                               byte** bouquetIds,
+                               int* languageCount,
+                               byte** languages,
+                               int* availableInCellCount,
+                               byte** availableInCells,
+                               int* unavailableInCellCount,
+                               byte** unavailableInCells,
+                               int* targetRegionCount,
+                               byte** targetRegions,
+                               int* availableInCountryCount,
+                               byte** availableInCountries,
+                               int* unavailableInCountryCount,
+                               byte** unavailableInCountries)PURE;
+
+  // NIT scanning
+  STDMETHOD(ScanNetwork)(THIS_)PURE;
+  STDMETHOD(StopNetworkScan)(THIS_ bool* isOtherMuxServiceInfoAvailable)PURE;
+  STDMETHOD(GetMultiplexCount)(THIS_ int* multiplexCount)PURE;
+  STDMETHOD(GetMultiplexDetail)(THIS_ int index,
+                                int* originalNetworkId,
+                                int* transportStreamId,
+                                int* type,
+                                int* frequency,
+                                int* polarisation,
+                                int* modulation,
+                                int* symbolRate,
+                                int* bandwidth,
+                                int* innerFecRate,
+                                int* rollOff,
+                                int* longitude,
+                                int* cellId,
+                                int* cellIdExtension,
+                                int* plpId)PURE;
+
+  STDMETHOD(GetTargetRegionName)(THIS_ __int64 targetRegionId, char** name);
+  STDMETHOD(GetBouquetName)(THIS_ int bouquetId, char** name);
+  STDMETHOD(GetNetworkName)(THIS_ int networkId, char** name);
 };
 
 class CMpTsFilter;
 
-class CChannelScan: public CUnknown, public ITSChannelScan
+class CChannelScan : public CUnknown, public ITsChannelScan, IPatCallBack, IPmtCallBack2, ISdtCallBack, IVctCallBack, public IEncryptionStateChangeCallBack
 {
-public:
-	CChannelScan(LPUNKNOWN pUnk, HRESULT *phr, CMpTsFilter* filter);
-	~CChannelScan(void);
-	
-  DECLARE_IUNKNOWN
-	
-	STDMETHODIMP Start(bool waitForVCT);
-	STDMETHODIMP Stop();
-	STDMETHODIMP GetCount(int* channelCount);
-	STDMETHODIMP IsReady( BOOL* yesNo);
-	STDMETHODIMP GetChannel(int index,
-										 long* networkId,
-										 long* transportId,
-										 long* serviceId,
-										 int* majorChannel,
-										 int* minorChannel,
-										 int* frequency,
-										 int* lcn,
-										 int* freeCAMode,
-										 int* serviceType,
-										 int* modulation,
-										 char** providerName,
-										 char** serviceName,
-										 int* pmtPid,
-										 int* hasVideo,
-										 int* hasAudio,
-										 int* hasCaDescriptor);
-	STDMETHODIMP SetCallBack(IChannelScanCallback* callback);
+  public:
+    CChannelScan(LPUNKNOWN pUnk, HRESULT *phr, CMpTsFilter* filter);
+    ~CChannelScan(void);
+  
+    DECLARE_IUNKNOWN
 
-	STDMETHODIMP ScanNIT();
-	STDMETHODIMP StopNIT();
-	STDMETHODIMP GetNITCount(int* transponderCount);
-	STDMETHODIMP GetNITChannel(int channel,int* type, int* frequency,int *polarisation, int* modulation, int* symbolrate, int* bandwidth, int* fecInner, int* rollOff, char** networkName);
+    STDMETHODIMP SetCallBack(IChannelScanCallBack* callBack);
+  
+    STDMETHODIMP ScanStream(BroadcastStandard broadcastStandard);
+    STDMETHODIMP StopStreamScan();
+    STDMETHODIMP GetServiceCount(int* serviceCount);
+    STDMETHODIMP GetServiceDetail(int index,
+                                  int* originalNetworkId,
+                                  int* transportStreamId,
+                                  int* serviceId,
+                                  char** serviceName,
+                                  char** providerName,
+                                  char** logicalChannelNumber,
+                                  int* serviceType,
+                                  int* videoStreamCount,
+                                  int* audioStreamCount,
+                                  bool* isHighDefinition,
+                                  bool* isEncrypted,
+                                  bool* isRunning,
+                                  int* pmtPid,
+                                  int* previousOriginalNetworkId,
+                                  int* previousTransportStreamId,
+                                  int* previousServiceId,
+                                  int* networkIdCount,
+                                  byte** networkIds,
+                                  int* bouquetIdCount,
+                                  byte** bouquetIds,
+                                  int* languageCount,
+                                  byte** languages,
+                                  int* availableInCellCount,
+                                  byte** availableInCells,
+                                  int* unavailableInCellCount,
+                                  byte** unavailableInCells,
+                                  int* targetRegionCount,
+                                  byte** targetRegions,
+                                  int* availableInCountryCount,
+                                  byte** availableInCountries,
+                                  int* unavailableInCountryCount,
+                                  byte** unavailableInCountries);
 
-	void OnTsPacket(byte* tsPacket);
-private:
-	CPatParser m_patParser;
-	bool m_bIsParsing;
-	bool m_bIsParsingNIT;
-	CMpTsFilter* m_pFilter;
-	CCriticalSection m_section;
-	IChannelScanCallback* m_pCallback;
-  CNITDecoder m_nit;
+
+    STDMETHODIMP ScanNetwork();
+    STDMETHODIMP StopNetworkScan(bool* isOtherMuxServiceInfoAvailable);
+    STDMETHODIMP GetMultiplexCount(int* multiplexCount);
+    STDMETHODIMP GetMultiplexDetail(int index,
+                                    int* originalNetworkId,
+                                    int* transportStreamId,
+                                    int* type,
+                                    int* frequency,
+                                    int* polarisation,
+                                    int* modulation,
+                                    int* symbolRate,
+                                    int* bandwidth,
+                                    int* innerFecRate,
+                                    int* rollOff,
+                                    int* longitude,
+                                    int* cellId,
+                                    int* cellIdExtension,
+                                    int* plpId);
+
+    STDMETHODIMP GetTargetRegionName(__int64 targetRegionId, char** name);
+    STDMETHODIMP GetBouquetName(int bouquetId, char** name);
+    STDMETHODIMP GetNetworkName(int networkId, char** name);
+
+    void OnTsPacket(byte* tsPacket);
+    void OnPatReceived(int serviceId, int pmtPid);
+    void OnPmtReceived(const CPidTable& pidTable);
+    void OnSdtReceived(const CChannelInfo& sdtInfo);
+    void OnVctReceived(const CChannelInfo& vctInfo);
+    STDMETHODIMP OnEncryptionStateChange(int pid, EncryptionState encryptionState);
+
+  private:
+    void CleanUp();
+
+    CMpTsFilter* m_pFilter;
+    CCriticalSection m_section;
+    IChannelScanCallBack* m_pCallBack;
+    bool m_bIsScanning;
+    bool m_bIsScanningNetwork;
+    BroadcastStandard m_broadcastStandard;
+    bool m_bIsOtherMuxServiceInfoSeen;
+
+    map<int, CChannelInfo*> m_mServices;
+
+    CPatParser m_patParser;
+    vector<CPmtParser*> m_vPmtParsers;
+    CEncryptionAnalyser* m_pEncryptionAnalyser;
+    map<int, int> m_mPids;  // map directly linking a PID to a service - limitation a PID can only be linked to one service
+    CSdtParser m_sdtParser;
+    CNitParser m_nitParser;
+    CBatParser m_batParser;
+    CVctParser m_vctParser;
 };

@@ -417,7 +417,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Teletext.Implementations
     public void SaveData(IntPtr dataPtr)
     {
       if (dataPtr == IntPtr.Zero)
+      {
         return;
+      }
+      if (Marshal.ReadByte(dataPtr, 0) != 0x47)
+      {
+        Log.Log.WriteFile("packet sync error");
+        return;
+      }
+      if ((Marshal.ReadByte(dataPtr, 1) & 0x80) != 0)
+      {
+        Log.Log.WriteFile("packet sync error");
+        return;
+      }
       int dataAdd = (int)dataPtr;
       try
       {

@@ -19,36 +19,35 @@
 #endregion
 
 using System;
+using System.Net;
 using System.Threading;
-using Mediaportal.TV.Server.TVDatabase.Entities;
-using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
-using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Graphs;
-using Mediaportal.TV.Server.TVLibrary.Interfaces;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using Mediaportal.TV.Server.TVService.Interfaces.CardHandler;
+using TvControl;
+using TvDatabase;
+using TvLibrary;
+using TvLibrary.Log;
+using TvLibrary.Implementations;
+using TvLibrary.Implementations.DVB;
+using TvLibrary.Interfaces;
+using TvLibrary.Interfaces.Device;
 
-namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
+namespace TvService
 {
   public class TvCardHandler : ITvCardHandler
   {
     #region variables
 
+    private bool _isLocal;
     private ITVCard _card;
     private Card _dbsCard;
     private readonly UserManagement _userManagement;
-    private readonly IParkedUserManagement _parkedUserManagement;
-
     private readonly DisEqcManagement _disEqcManagement;
     private readonly TeletextManagement _teletext;
     private readonly ChannelScanning _scanner;
     private readonly EpgGrabbing _epgGrabbing;
-    private readonly AudioStreams _audioStreams;
     private readonly Recorder _recorder;
     private readonly TimeShifter _timerShifter;
     private readonly CardTuner _tuner;
-    private ICiMenuActions _ciMenu;    
+    private ICiMenuActions _ciMenu;
 
     #endregion
 
@@ -61,17 +60,15 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
       _dbsCard = dbsCard;
       Card = card;
+      IsLocal = _card != null;
       _userManagement = new UserManagement(this);
-      _parkedUserManagement = new ParkedUserManagement(this);
-
       _disEqcManagement = new DisEqcManagement(this);
       _teletext = new TeletextManagement(this);
       _scanner = new ChannelScanning(this);
       _epgGrabbing = new EpgGrabbing(this);
-      _audioStreams = new AudioStreams(this);
       _tuner = new CardTuner(this);
       _recorder = new Recorder(this);
-      _timerShifter = new TimeShifter(this);      
+      _timerShifter = new TimeShifter(this);
     }
 
     #endregion
@@ -82,16 +79,16 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
       get
       {
-        // is card a dvb card? then expose it's ConditionalAccess here
-        TvCardDvbBase dvbCard = _card as TvCardDvbBase;
-        if (dvbCard != null)
+        ICiMenuActions menuInterface = _card.CaMenuInterface;
+        if (menuInterface == null)
         {
-          if (dvbCard.HasCA && dvbCard.ConditionalAccess.CiMenu != null && dvbCard.ConditionalAccess.IsCamReady())
-            // only if cam is ready
-          {
-            _ciMenu = dvbCard.ConditionalAccess.CiMenu;
-            return true;
-          }
+          return false;
+        }
+        IConditionalAccessProvider caProvider = menuInterface as IConditionalAccessProvider;
+        if (caProvider.IsInterfaceReady())
+        {
+          _ciMenu = menuInterface;
+          return true;
         }
         return false;
       }
@@ -108,58 +105,50 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
 
     #endregion
 
-
-    public IUserManagement UserManagement
+    /// <summary>
+    /// Gets the users.
+    /// </summary>
+    /// <value>The users.</value>
+    public UserManagement Users
     {
       get { return _userManagement; }
     }
-
-
-    public IParkedUserManagement ParkedUserManagement
-    {
-      get { return _parkedUserManagement; }
-    }    
 
     /// <summary>
     /// Gets the diseqc handler.
     /// </summary>
     /// <value>The dis eq C.</value>
-    public IDisEqcManagement DisEqC
+    public DisEqcManagement DisEqC
     {
       get { return _disEqcManagement; }
     }
 
-    public ITeletextManagement Teletext
+    public TeletextManagement Teletext
     {
       get { return _teletext; }
     }
 
-    public IChannelScanning Scanner
+    public ChannelScanning Scanner
     {
       get { return _scanner; }
     }
 
-    public IEpgGrabbing Epg
+    public EpgGrabbing Epg
     {
       get { return _epgGrabbing; }
     }
 
-    public IAudioStreams Audio
-    {
-      get { return _audioStreams; }
-    }
-
-    public IRecorder Recorder
+    public Recorder Recorder
     {
       get { return _recorder; }
     }
 
-    public ITimeShifter TimeShifter
+    public TimeShifter TimeShifter
     {
       get { return _timerShifter; }
     }
 
-    public ICardTuner Tuner
+    public CardTuner Tuner
     {
       get { return _tuner; }
     }
@@ -188,7 +177,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public bool SupportsSubChannels
     {
       get
-      {       
+      {
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.SupportsSubChannels(_dbsCard.IdCard);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return false;
+          }
+        }
         return _card.SupportsSubChannels;
       }
     }
@@ -203,7 +205,15 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       set { _dbsCard = value; }
     }
 
-
+    /// <summary>
+    /// Gets or sets a value indicating whether this card is in the local pc or remote.
+    /// </summary>
+    /// <value><c>true</c> if this card is local; otherwise, <c>false</c>.</value>
+    public bool IsLocal
+    {
+      get { return _isLocal; }
+      set { _isLocal = value; }
+    }
 
     /// <summary>
     /// Gets a value indicating whether this instance is idle.
@@ -213,39 +223,64 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
       get
       {
-        if (UserManagement.UsersCount() == 0)
-        {
+        IUser[] users = Users.GetUsers();
+        if (users == null)
           return true;
-        }
+        if (users.Length == 0)
+          return true;
         return false;
       }
     }
 
     /// <summary>
-    /// Does the card have a CA module.
+    /// Does the device support conditional access?
     /// </summary>
-    /// <value>The number of channels decrypting.</value>
-    public bool HasCA
+    /// <value><c>true</c> if the device supports conditional access, otherwise <c>false</c></value>
+    public bool IsConditionalAccessSupported
     {
       get
-      {       
-        return _card.HasCA;
+      {
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.IsConditionalAccessSupported(_dbsCard.IdCard);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return false;
+          }
+        }
+        return _card.IsConditionalAccessSupported;
       }
     }
 
-
     /// <summary>
-    /// Returns the number of channels the card is currently decrypting
+    /// Get a count of the number of services that the device is currently decrypting.
     /// </summary>
-    /// <value>The number of channels decrypting.</value>
+    /// <value>The number of services currently being decrypted.</value>
     public int NumberOfChannelsDecrypting
     {
       get
-      {       
+      {
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.NumberOfChannelsDecrypting(_dbsCard.IdCard);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return 0;
+          }
+        }
         return _card.NumberOfChannelsDecrypting;
       }
     }
-
 
     /// <summary>
     /// Gets the type of card.
@@ -256,7 +291,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       get
       {
         try
-        {         
+        {
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.Type(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return CardType.Analog;
+            }
+          }
           return _card.CardType;
         }
         catch (ThreadAbortException)
@@ -280,7 +328,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       get
       {
         try
-        {          
+        {
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.CardName(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return "";
+            }
+          }
           return _card.Name;
         }
         catch (ThreadAbortException)
@@ -302,7 +363,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public string CardDevice()
     {
       try
-      {      
+      {
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.CardDevice(_dbsCard.IdCard);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return "";
+          }
+        }
         return _dbsCard.DevicePath;
       }
       catch (ThreadAbortException)
@@ -328,8 +402,19 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         try
         {
           if (_dbsCard.Enabled == false)
-          {
             return false;
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.TunerLocked(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return false;
+            }
           }
           return _card.IsTunerLocked;
         }
@@ -356,8 +441,19 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         try
         {
           if (_dbsCard.Enabled == false)
-          {
             return 0;
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.SignalQuality(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return 0;
+            }
           }
           return _card.SignalQuality;
         }
@@ -384,9 +480,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         try
         {
           if (_dbsCard.Enabled == false)
-          {
             return 0;
-          }         
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.SignalLevel(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return 0;
+            }
+          }
           return _card.SignalLevel;
         }
         catch (ThreadAbortException)
@@ -409,9 +516,21 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return;
-        }       
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            RemoteControl.Instance.UpdateSignalSate(_dbsCard.IdCard);
+            return;
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return;
+          }
+        }
         _card.ResetSignalUpdate();
       }
       catch (ThreadAbortException)
@@ -434,10 +553,20 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         try
         {
           if (_dbsCard.Enabled == false)
-          {
             return 0;
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.MinChannel(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return 0;
+            }
           }
-          
           return _card.MinChannel;
         }
         catch (ThreadAbortException)
@@ -463,8 +592,19 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         try
         {
           if (_dbsCard.Enabled == false)
-          {
             return 0;
+          if (IsLocal == false)
+          {
+            try
+            {
+              RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+              return RemoteControl.Instance.MaxChannel(_dbsCard.IdCard);
+            }
+            catch (Exception)
+            {
+              Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+              return 0;
+            }
           }
           return _card.MaxChannel;
         }
@@ -486,87 +626,65 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// </summary>
     public void Dispose()
     {
-      _card.Dispose();
-    }    
-
-    
+      if (IsLocal)
+      {
+        _card.Dispose();
+      }
+    }
 
     public void SetParameters()
     {
-      if (_card == null)
-      {
+      if (!IsLocal)
         return;
-      }
+      if (_card == null)
+        return;
       ScanParameters settings = new ScanParameters();
-      
-      settings.TimeOutTune = Int32.Parse(SettingsManagement.GetSetting("timeoutTune", "2").Value);
-      settings.TimeOutPAT = Int32.Parse(SettingsManagement.GetSetting("timeoutPAT", "5").Value);
-      settings.TimeOutCAT = Int32.Parse(SettingsManagement.GetSetting("timeoutCAT", "5").Value);
-      settings.TimeOutPMT = Int32.Parse(SettingsManagement.GetSetting("timeoutPMT", "10").Value);
-      settings.TimeOutSDT = Int32.Parse(SettingsManagement.GetSetting("timeoutSDT", "20").Value);
-      settings.TimeOutAnalog = Int32.Parse(SettingsManagement.GetSetting("timeoutAnalog", "20").Value);
-      settings.UseDefaultLnbFrequencies = (SettingsManagement.GetSetting("lnbDefault", "true").Value == "true");
-      settings.LnbLowFrequency = Int32.Parse(SettingsManagement.GetSetting("LnbLowFrequency", "0").Value);
-      settings.LnbHighFrequency = Int32.Parse(SettingsManagement.GetSetting("LnbHighFrequency", "0").Value);
-      settings.LnbSwitchFrequency = Int32.Parse(SettingsManagement.GetSetting("LnbSwitchFrequency", "0").Value);
-      settings.MinimumFiles = Int32.Parse(SettingsManagement.GetSetting("timeshiftMinFiles", "6").Value);
-      settings.MaximumFiles = Int32.Parse(SettingsManagement.GetSetting("timeshiftMaxFiles", "20").Value);
-      settings.MaximumFileSize = UInt32.Parse(SettingsManagement.GetSetting("timeshiftMaxFileSize", "256").Value);
+      TvBusinessLayer layer = new TvBusinessLayer();
+      settings.TimeOutTune = Int32.Parse(layer.GetSetting("timeoutTune", "2").Value);
+      settings.TimeOutCAT = Int32.Parse(layer.GetSetting("timeoutCAT", "5").Value);
+      settings.TimeOutPMT = Int32.Parse(layer.GetSetting("timeoutPMT", "10").Value);
+      settings.TimeOutSDT = Int32.Parse(layer.GetSetting("timeoutSDT", "20").Value);
+      settings.TimeOutAnalog = Int32.Parse(layer.GetSetting("timeoutAnalog", "20").Value);
+      settings.MinimumFiles = Int32.Parse(layer.GetSetting("timeshiftMinFiles", "6").Value);
+      settings.MaximumFiles = Int32.Parse(layer.GetSetting("timeshiftMaxFiles", "20").Value);
+      settings.MaximumFileSize = UInt32.Parse(layer.GetSetting("timeshiftMaxFileSize", "256").Value);
       settings.MaximumFileSize *= 1000;
       settings.MaximumFileSize *= 1000;
       _card.Parameters = settings;
-    }
-
-    public long CurrentMux()
-    {
-      ITvSubChannel subchannel = _card.GetFirstSubChannel();
-      long frequency = -1;
-
-      IChannel tuningDetail = subchannel.CurrentChannel;
-
-      var dvbTuningDetail = tuningDetail as DVBBaseChannel;
-      if (dvbTuningDetail != null)
-      {
-        frequency = dvbTuningDetail.Frequency;
-      }
-      else
-      {
-        var analogTuningDetail = tuningDetail as AnalogChannel;
-        if (analogTuningDetail != null)
-        {
-          frequency = analogTuningDetail.Frequency; 
-        }        
-      }
-
-      return frequency;      
     }
 
 
     /// <summary>
     /// Gets the current channel.
     /// </summary>
-    /// <param name="userName"> </param>
-    /// <param name="idChannel"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>channel</returns>
-    public IChannel CurrentChannel(string userName, int idChannel)
+    public IChannel CurrentChannel(ref IUser user)
     {
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return null;
-        }
-               
-        if (Context == null)
+        if (IsLocal == false)
         {
-          return null;
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.CurrentChannel(ref user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return null;
+          }
         }
-        
-        ITvSubChannel subchannel = _card.GetSubChannel(_userManagement.GetSubChannelIdByChannelId(userName, idChannel));
+        var context = _card.Context as ITvCardContext;
+        if (context == null)
+          return null;
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
-        {
           return null;
-        }
         return subchannel.CurrentChannel;
       }
       catch(ThreadAbortException)
@@ -583,18 +701,30 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// <summary>
     /// Gets the current channel.
     /// </summary>
-    /// <param name="userName"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>id of database channel</returns>
-    public int CurrentDbChannel(string userName)
+    public int CurrentDbChannel(ref IUser user)
     {
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return -1;
+        if (IsLocal == false)
+        {
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.CurrentDbChannel(ref user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return -1;
+          }
         }
-        
-        return _userManagement.GetTimeshiftingChannelId(userName);
+        ITvCardContext context = _card.Context as ITvCardContext;
+        context.GetUser(ref user);
+        return user.IdChannel;
       }
       catch (ThreadAbortException)
       {
@@ -607,40 +737,40 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       }
     }
 
-    private ITvCardContext Context
-    {
-      get { return _card.Context as ITvCardContext; }
-    }
-
     /// <summary>
     /// Gets the current channel name.
     /// </summary>
-    /// <param name="userName"> </param>
-    /// <param name="idChannel"> </param>
+    /// <param name="user">The user.</param>
     /// <returns>channel</returns>
-    public string CurrentChannelName(string userName, int idChannel)
+    public string CurrentChannelName(ref IUser user)
     {
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return "";
-        }
-        
-        if (Context == null)
+        if (IsLocal == false)
         {
-          return "";
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.CurrentChannelName(ref user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return "";
+          }
         }
-        
-        ITvSubChannel subchannel = _card.GetSubChannel(_userManagement.GetSubChannelIdByChannelId(userName, idChannel));
+
+        ITvCardContext context = _card.Context as ITvCardContext;
+        if (context == null)
+          return "";
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
-        {
           return "";
-        }
         if (subchannel.CurrentChannel == null)
-        {
           return "";
-        }
         return subchannel.CurrentChannel.Name;
       }
       catch (ThreadAbortException)
@@ -659,49 +789,30 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// scrambled or not.
     /// </summary>
     /// <returns>yes if channel is scrambled and CI/CAM cannot decode it, otherwise false</returns>
-    public bool IsScrambled(string userName)
+    public bool IsScrambled(ref IUser user)
     {
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return true;
-        }               
-        if (Context == null)
+        if (IsLocal == false)
         {
-          return false;
-        }        
-        ITvSubChannel subchannel = _card.GetSubChannel(_userManagement.GetTimeshiftingSubChannel(userName));
-        if (subchannel == null)
-        {
-          return false;
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            return RemoteControl.Instance.IsScrambled(ref user);
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return false;
+          }
         }
-        return (!subchannel.IsReceivingAudioVideo);
-      }
-      catch (ThreadAbortException)
-      {
-        return false;
-      }
-      catch (Exception ex)
-      {
-        Log.Write(ex);
-        return false;
-      }
-    }
-
-    public bool IsScrambled(int subchannelId)
-    {
-      try
-      {
-        if (_dbsCard.Enabled == false)
-        {
-          return true;
-        }
-        
-        if (Context == null)
+        ITvCardContext context = _card.Context as ITvCardContext;
+        if (context == null)
           return false;
-
-        ITvSubChannel subchannel = _card.GetSubChannel(subchannelId);
+        context.GetUser(ref user);
+        ITvSubChannel subchannel = _card.GetSubChannel(user.SubChannel);
         if (subchannel == null)
           return false;
         return (false == subchannel.IsReceivingAudioVideo);
@@ -717,85 +828,47 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       }
     }
 
-
     /// <summary>
-    /// Pauses the card.
+    /// Stops the card.
     /// </summary>
-    public void PauseCard()
+    public void StopCard(IUser user)
     {
       try
       {
         if (_dbsCard.Enabled == false)
-        {
           return;
-        }
-
-        if (_parkedUserManagement.HasAnyParkedUsers())
+        if (IsLocal == false)
         {
-          Log.Info("unable to Pausecard since there are parked channels");
-          return;
+          try
+          {
+            RemoteControl.HostName = _dbsCard.ReferencedServer().HostName;
+            RemoteControl.Instance.StopCard(user);
+            return;
+          }
+          catch (Exception)
+          {
+            Log.Error("card: unable to connect to slave controller at:{0}", _dbsCard.ReferencedServer().HostName);
+            return;
+          }
         }
-
-        Log.Info("Pausecard");
-        //remove all subchannels, except for this user...
-        FreeAllSubChannels();
-        
-        if (Context != null)
-        {
-          _userManagement.Clear();
-        }
-
-        if (_card.SupportsPauseGraph)
-        {
-          _card.PauseGraph();
-        }
-        else
-        {
-          _card.StopGraph();
-        }
-      }
-      catch (ThreadAbortException)
-      {        
-      }
-      catch (Exception ex)
-      {
-        Log.Write(ex);
-      }
-    }
-
-   
-
-    /// <summary>
-    /// Stops the card.
-    /// </summary>
-    public void StopCard()
-    {
-      try
-      {
-        if (!_dbsCard.Enabled)
-        {
-          return;
-        }
-
-        if (_parkedUserManagement.HasAnyParkedUsers())
-        {
-          Log.Info("unable to Stopcard since there are parked channels");
-          return;
-        }
-      
         Log.Info("Stopcard");
 
         //remove all subchannels, except for this user...
-        FreeAllSubChannels();        
+        ITvSubChannel[] channels = _card.SubChannels;
+        for (int i = 0; i < channels.Length; ++i)
+        {
+          _card.FreeSubChannel(channels[i].SubChannelId);
+        }
 
-        
-        
-        _userManagement.Clear();
-        
-        _card.StopGraph();
+        ITvCardContext context = _card.Context as ITvCardContext;
+        if (context != null)
+        {
+          context.Clear();
+        }
+        _card.Stop();
       }
       catch (ThreadAbortException)
-      {       
+      {
       }
       catch (Exception ex)
       {
@@ -803,38 +876,17 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       }
     }
 
-    private void FreeAllSubChannels()
-    {
-      ITvSubChannel[] channels = _card.SubChannels;
-      foreach (ITvSubChannel tvSubChannel in channels)
-      {
-        _card.FreeSubChannel(tvSubChannel.SubChannelId);
-      }
-
-    }
-
     /// <summary>
-    /// Gets the current video stream.
+    /// returns a virtual card for this tvcard
     /// </summary>
     /// <returns></returns>
-    public IVideoStream GetCurrentVideoStream(string userName)
+    public VirtualCard GetVirtualCard(IUser user)
     {
-      if (_dbsCard.Enabled == false)
-      {
-        return null;
-      }
-            
-      if (Context == null)
-      {
-        return null;
-      }
-      
-      ITvSubChannel subchannel = _card.GetSubChannel(_userManagement.GetTimeshiftingSubChannel(userName));
-      if (subchannel == null)
-      {
-        return null;
-      }
-      return subchannel.GetCurrentVideoStream;
+      VirtualCard card = new VirtualCard(user);
+      card.RecordingFolder = _dbsCard.RecordingFolder;
+      card.TimeshiftFolder = _dbsCard.TimeShiftFolder;
+      card.RemoteServer = Dns.GetHostName();
+      return card;
     }
   }
 }

@@ -244,15 +244,6 @@ namespace Mediaportal.TV.Server.TVControl
       set { _server = value; }
     }
 
-    ///<summary>
-    /// Gets/Set the recording format
-    ///</summary>
-    public int RecordingFormat
-    {
-      get { return _recordingFormat; }
-      set { _recordingFormat = value; }
-    }
-
     /// <summary>
     /// gets/sets the recording folder for the card
     /// </summary>    

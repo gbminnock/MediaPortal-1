@@ -1,3 +1,4 @@
+namespace SetupTv.Sections
 using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
 
 namespace Mediaportal.TV.Server.Plugins.XmlTvImport
@@ -30,9 +31,9 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
     /// </summary>
     private void InitializeComponent()
     {
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle9 = new System.Windows.Forms.DataGridViewCellStyle();
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle7 = new System.Windows.Forms.DataGridViewCellStyle();
-      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle8 = new System.Windows.Forms.DataGridViewCellStyle();
+      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
+      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
+      System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
       this.tabControl1 = new System.Windows.Forms.TabControl();
       this.tabSettings = new System.Windows.Forms.TabPage();
       this.panel1 = new System.Windows.Forms.Panel();
@@ -91,6 +92,8 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       this.label33 = new System.Windows.Forms.Label();
       this.label36 = new System.Windows.Forms.Label();
       this.groupBox3 = new System.Windows.Forms.GroupBox();
+      this.radioDownloadOnWakeUp = new MediaPortal.UserInterface.Controls.MPRadioButton();
+      this.radioDownloadOnSchedule = new MediaPortal.UserInterface.Controls.MPRadioButton();
       this.chkScheduler = new System.Windows.Forms.CheckBox();
       this.label27 = new System.Windows.Forms.Label();
       this.dateTimePickerScheduler = new System.Windows.Forms.DateTimePicker();
@@ -335,10 +338,9 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       this.label14.AutoSize = true;
       this.label14.Location = new System.Drawing.Point(6, 220);
       this.label14.Name = "label14";
-      this.label14.Size = new System.Drawing.Size(405, 13);
+      this.label14.Size = new System.Drawing.Size(280, 13);
       this.label14.TabIndex = 28;
-      this.label14.Text = "When  it detects a new file, it will be import the EPG and tv channels in the dat" +
-          "abase";
+      this.label14.Text = "When it detects a new file, it will be imported automatically";
       // 
       // label15
       // 
@@ -588,14 +590,14 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       this.dataGridChannelMappings.Location = new System.Drawing.Point(6, 94);
       this.dataGridChannelMappings.MultiSelect = false;
       this.dataGridChannelMappings.Name = "dataGridChannelMappings";
-      dataGridViewCellStyle9.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-      dataGridViewCellStyle9.BackColor = System.Drawing.SystemColors.Control;
-      dataGridViewCellStyle9.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      dataGridViewCellStyle9.ForeColor = System.Drawing.SystemColors.WindowText;
-      dataGridViewCellStyle9.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-      dataGridViewCellStyle9.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-      dataGridViewCellStyle9.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-      this.dataGridChannelMappings.RowHeadersDefaultCellStyle = dataGridViewCellStyle9;
+      dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+      dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Control;
+      dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.WindowText;
+      dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+      dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+      dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+      this.dataGridChannelMappings.RowHeadersDefaultCellStyle = dataGridViewCellStyle6;
       this.dataGridChannelMappings.Size = new System.Drawing.Size(454, 317);
       this.dataGridChannelMappings.TabIndex = 2;
       // 
@@ -609,8 +611,8 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       // tuningChannel
       // 
       this.tuningChannel.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.Fill;
-      dataGridViewCellStyle7.BackColor = System.Drawing.Color.White;
-      this.tuningChannel.DefaultCellStyle = dataGridViewCellStyle7;
+      dataGridViewCellStyle4.BackColor = System.Drawing.Color.White;
+      this.tuningChannel.DefaultCellStyle = dataGridViewCellStyle4;
       this.tuningChannel.HeaderText = "Tuning Channel";
       this.tuningChannel.Name = "tuningChannel";
       this.tuningChannel.ReadOnly = true;
@@ -619,8 +621,8 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       // guideChannel
       // 
       this.guideChannel.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.Fill;
-      dataGridViewCellStyle8.BackColor = System.Drawing.Color.White;
-      this.guideChannel.DefaultCellStyle = dataGridViewCellStyle8;
+      dataGridViewCellStyle5.BackColor = System.Drawing.Color.White;
+      this.guideChannel.DefaultCellStyle = dataGridViewCellStyle5;
       this.guideChannel.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
       this.guideChannel.HeaderText = "Guide channel";
       this.guideChannel.Name = "guideChannel";
@@ -737,6 +739,32 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       this.groupBox3.TabIndex = 33;
       this.groupBox3.TabStop = false;
       this.groupBox3.Text = "Schedule:";
+      // 
+      // radioDownloadOnWakeUp
+      // 
+      this.radioDownloadOnWakeUp.AutoSize = true;
+      this.radioDownloadOnWakeUp.Enabled = false;
+      this.radioDownloadOnWakeUp.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
+      this.radioDownloadOnWakeUp.Location = new System.Drawing.Point(20, 83);
+      this.radioDownloadOnWakeUp.Name = "radioDownloadOnWakeUp";
+      this.radioDownloadOnWakeUp.Size = new System.Drawing.Size(358, 17);
+      this.radioDownloadOnWakeUp.TabIndex = 39;
+      this.radioDownloadOnWakeUp.Text = "Force download when tvservice starts/resumes (but only once per day)";
+      this.radioDownloadOnWakeUp.UseVisualStyleBackColor = true;
+      // 
+      // radioDownloadOnSchedule
+      // 
+      this.radioDownloadOnSchedule.AutoSize = true;
+      this.radioDownloadOnSchedule.Checked = true;
+      this.radioDownloadOnSchedule.Enabled = false;
+      this.radioDownloadOnSchedule.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
+      this.radioDownloadOnSchedule.Location = new System.Drawing.Point(20, 64);
+      this.radioDownloadOnSchedule.Name = "radioDownloadOnSchedule";
+      this.radioDownloadOnSchedule.Size = new System.Drawing.Size(112, 17);
+      this.radioDownloadOnSchedule.TabIndex = 38;
+      this.radioDownloadOnSchedule.TabStop = true;
+      this.radioDownloadOnSchedule.Text = "Scheduled at time:";
+      this.radioDownloadOnSchedule.UseVisualStyleBackColor = true;
       // 
       // chkScheduler
       // 
@@ -887,32 +915,6 @@ namespace Mediaportal.TV.Server.Plugins.XmlTvImport
       // 
       this.saveFileExport.Title = "Export the mapped guidechannels";
       this.saveFileExport.FileOk += new System.ComponentModel.CancelEventHandler(this.saveFileExport_FileOk);
-      // 
-      // radioDownloadOnSchedule
-      // 
-      this.radioDownloadOnSchedule.AutoSize = true;
-      this.radioDownloadOnSchedule.Checked = true;
-      this.radioDownloadOnSchedule.Enabled = false;
-      this.radioDownloadOnSchedule.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-      this.radioDownloadOnSchedule.Location = new System.Drawing.Point(20, 64);
-      this.radioDownloadOnSchedule.Name = "radioDownloadOnSchedule";
-      this.radioDownloadOnSchedule.Size = new System.Drawing.Size(112, 17);
-      this.radioDownloadOnSchedule.TabIndex = 38;
-      this.radioDownloadOnSchedule.TabStop = true;
-      this.radioDownloadOnSchedule.Text = "Scheduled at time:";
-      this.radioDownloadOnSchedule.UseVisualStyleBackColor = true;
-      // 
-      // radioDownloadOnWakeUp
-      // 
-      this.radioDownloadOnWakeUp.AutoSize = true;
-      this.radioDownloadOnWakeUp.Enabled = false;
-      this.radioDownloadOnWakeUp.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-      this.radioDownloadOnWakeUp.Location = new System.Drawing.Point(20, 83);
-      this.radioDownloadOnWakeUp.Name = "radioDownloadOnWakeUp";
-      this.radioDownloadOnWakeUp.Size = new System.Drawing.Size(358, 17);
-      this.radioDownloadOnWakeUp.TabIndex = 39;
-      this.radioDownloadOnWakeUp.Text = "Force download when tvservice starts/resumes (but only once per day)";
-      this.radioDownloadOnWakeUp.UseVisualStyleBackColor = true;
       // 
       // XmlTvSetup
       // 

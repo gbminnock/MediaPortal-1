@@ -20,6 +20,7 @@
 
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVService.Interfaces.CardHandler;
+using TvLibrary.Interfaces.Device;
 
 namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
 {
@@ -50,10 +51,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       stepsAzimuth = 0;
       stepsElevation = 0;
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.GetPosition(out satellitePosition, out stepsAzimuth, out stepsElevation);
+      controller.GetPosition(out satellitePosition, out stepsAzimuth, out stepsElevation);
     }
 
     /// <summary>
@@ -62,10 +63,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public void Reset()
     {
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.Reset();
+      controller.Reset();
     }
 
     /// <summary>
@@ -74,10 +75,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public void StopMotor()
     {
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.StopMotor();
+      controller.Stop();
     }
 
     /// <summary>
@@ -90,7 +91,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
       if (motor == null)
         return;
-      motor.SetEastLimit();
+      controller.SetEastLimit();
     }
 
     /// <summary>
@@ -103,7 +104,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
       if (motor == null)
         return;
-      motor.SetWestLimit();
+      controller.SetWestLimit();
     }
 
     /// <summary>
@@ -117,7 +118,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
       if (motor == null)
         return;
-      motor.ForceLimits = onOff;
+      controller.ForceLimits = onOff;
     }
 
     /// <summary>
@@ -125,14 +126,14 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     /// </summary>
     /// <param name="direction">The direction.</param>
     /// <param name="numberOfSteps">The number of steps.</param>
-    public void DriveMotor(DiSEqCDirection direction, byte numberOfSteps)
+    public void DriveMotor(DiseqcDirection direction, byte numberOfSteps)
     {
 
 
       IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
       if (motor == null)
         return;
-      motor.DriveMotor(direction, numberOfSteps);
+      controller.DriveMotor(direction, numberOfSteps);
     }
 
     /// <summary>
@@ -143,10 +144,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
  
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.StorePosition(position);
+      controller.StorePosition(position);
     }
 
     /// <summary>
@@ -155,10 +156,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public void GotoReferencePosition()
     {
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.GotoReferencePosition();
+      controller.GotoReferencePosition();
     }
 
     /// <summary>
@@ -168,10 +169,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public void GotoStoredPosition(byte position)
     {
 
-      IDiSEqCMotor motor = _cardHandler.Card.DiSEqCMotor;
-      if (motor == null)
+      IDiseqcController controller = _cardHandler.Card.DiseqcController;
+      if (controller == null)
         return;
-      motor.GotoPosition(position);
+      controller.GotoPosition(position);
     }
 
     #endregion

@@ -21,30 +21,45 @@
 using System.Collections.Generic;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using TvLibrary.Interfaces.Device;
 
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
 {
-  public delegate void OnNewSubChannelDelegate(int id);
+  #region event delegates
+
   /// <summary>
-  /// cam types
+  /// Delegate for the new subchannel event.
   /// </summary>
-  public enum CamType
-  {
-    /// <summary>
-    /// Default
-    /// </summary>
-    Default = 0,
-    /// <summary>
-    /// Astoncrypt 2 cam
-    /// </summary>
-    Astoncrypt2 = 1
-  }
+  /// <param name="subChannelId">The ID of the new subchannel.</param>
+  public delegate void OnNewSubChannelDelegate(int subChannelId);
+
+  /// <summary>
+  /// Delegate for the after tune event.
+  /// </summary>
+  public delegate void OnAfterTuneDelegate();
+
+  #endregion
 
   /// <summary>
   /// interface for a tv card
   /// </summary>
   public interface ITVCard
   {
+    #region events
+    // Note: events are handled as set-only properties to enable clean hybrid tuner handling.
+
+    /// <summary>
+    /// Set the device's new subchannel event handler.
+    /// </summary>
+    OnNewSubChannelDelegate OnNewSubChannelEvent { set; }
+
+    /// <summary>
+    /// Set the device's after tune event handler.
+    /// </summary>
+    OnAfterTuneDelegate OnAfterTuneEvent { set; }
+
+    #endregion
+
     #region properties
 
     /// <summary>
@@ -52,12 +67,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     /// </summary>
     /// <value><c>true</c> if card supports sub channels; otherwise, <c>false</c>.</value>
     bool SupportsSubChannels { get; }
-
-    /// <summary>
-    /// Gets wether or not card supports pausing the graph.
-    /// </summary>
-    bool SupportsPauseGraph { get; }
-
 
     /// <summary>
     /// Gets or sets the timeout parameters.
@@ -87,16 +96,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     bool CanTune(IChannel channel);
 
     /// <summary>
-    /// Stops the current graph
+    /// Stop the card.
     /// </summary>
-    /// <returns></returns>
-    void StopGraph();
-
-    /// <summary>
-    /// Pauses the current graph
-    /// </summary>
-    /// <returns></returns>
-    void PauseGraph();
+    void Stop();
 
     /// <summary>
     /// returns the min. channel number for analog cards
@@ -121,22 +123,31 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     CardType CardType { get; }
 
     /// <summary>
-    /// Gets the interface for controlling the diseqc motor
+    /// Get the device's DiSEqC control interface. This interface is only applicable for satellite tuners.
+    /// It is used for controlling switch, positioner and LNB settings.
     /// </summary>
-    /// <value>Theinterface for controlling the diseqc motor.</value>
-    IDiSEqCMotor DiSEqCMotor { get; }
+    /// <value><c>null</c> if the tuner is not a satellite tuner or the tuner does not support sending/receiving
+    /// DiSEqC commands</value>
+    IDiseqcController DiseqcController { get; }
 
     /// <summary>
-    /// Gets the number of channels the card is currently decrypting.
+    /// Does the device support conditional access?
     /// </summary>
-    /// <value>The number of channels decrypting.</value>
+    /// <value><c>true</c> if the device supports conditional access, otherwise <c>false</c></value>
+    bool IsConditionalAccessSupported { get; }
+
+    /// <summary>
+    /// Get the device's conditional access menu interaction interface. This interface is only applicable if
+    /// conditional access is supported.
+    /// </summary>
+    /// <value><c>null</c> if the device does not support conditional access</value>
+    ICiMenuActions CaMenuInterface { get; }
+
+    /// <summary>
+    /// Get a count of the number of services that the device is currently decrypting.
+    /// </summary>
+    /// <value>The number of services currently being decrypted.</value>
     int NumberOfChannelsDecrypting { get; }
-
-    /// <summary>
-    /// Does the card have a CA module.
-    /// </summary>
-    /// <value>The number of channels decrypting.</value>
-    bool HasCA { get; }
 
     #endregion
 
@@ -184,29 +195,35 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     List<EpgChannel> Epg { get; }
 
     /// <summary>
-    /// returns the ITVScanning interface used for scanning channels
+    /// Get the device's channel scanning interface.
     /// </summary>
     ITVScanning ScanningInterface { get; }
 
     #endregion
 
-    #region tuning & recording
+    #region tuning & scanning
 
     /// <summary>
-    /// Tunes the specified channel.
+    /// Tune to a specific channel.
     /// </summary>
-    /// <param name="subChannelId">The sub channel id.</param>
-    /// <param name="channel">The channel.</param>
-    /// <returns>true if succeeded else false</returns>
+    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being tuned.</param>
+    /// <param name="channel">The channel to tune to.</param>
+    /// <returns>the subchannel associated with the tuned channel</returns>
     ITvSubChannel Tune(int subChannelId, IChannel channel);
 
     /// <summary>
-    /// Scans the specified channel.
+    /// Scan a specific channel.
     /// </summary>
-    /// <param name="subChannelId">The sub channel id.</param>
-    /// <param name="channel">The channel.</param>
-    /// <returns>true if succeeded else false</returns>
+    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being scanned.</param>
+    /// <param name="channel">The channel to scan.</param>
+    /// <returns>the subchannel associated with the scanned channel</returns>
     ITvSubChannel Scan(int subChannelId, IChannel channel);
+
+    /// <summary>
+    /// Cancel the current tuning process.
+    /// </summary>
+    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being cancelled.</param>
+    void CancelTune(int subChannelId);
 
     #endregion
 
@@ -215,7 +232,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     /// <summary>
     /// Get/Set the quality
     /// </summary>
-    IQuality Quality { get; set; }
+    IQuality Quality { get; }
 
     /// <summary>
     /// Property which returns true if card supports quality control

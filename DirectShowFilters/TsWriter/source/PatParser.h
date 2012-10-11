@@ -1,6 +1,6 @@
 /* 
- *	Copyright (C) 2006-2008 Team MediaPortal
- *	http://www.team-mediaportal.com
+ *  Copyright (C) 2006-2008 Team MediaPortal
+ *  http://www.team-mediaportal.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,64 +21,33 @@
 #pragma once
 
 #include "..\..\shared\sectiondecoder.h"
-#include "PmtParser.h"
-#include "sdtParser.h"
-#include "NitDecoder.h"
-#include "..\..\shared\channelinfo.h"
-#include "VirtualChannelTableParser.h"
-#include "..\..\shared\tsheader.h"
-#include "criticalsection.h"
-#include "entercriticalsection.h"
-#include <vector>
 #include <map>
 using namespace std;
-using namespace Mediaportal;
 
-
-DECLARE_INTERFACE_(IChannelScanCallback, IUnknown)
+class IPatCallBack
 {
-	STDMETHOD(OnScannerDone)()PURE;
+  public:
+    virtual void OnPatReceived(int serviceId, int pmtPid) = 0;
 };
 
 #define PID_PAT 0x0
 
-class CPatParser : public CSectionDecoder, public ISdtCallBack, public IAtscCallback, public IPmtCallBack2
+class CPatParser : public CSectionDecoder
 {
-public:
-  CPatParser(void);
-  virtual ~CPatParser(void);
+  public:
+    CPatParser(void);
+    virtual ~CPatParser(void);
+    void Reset();
+    void SetCallBack(IPatCallBack* callBack);
+    void OnNewSection(CSection& sections);
+    bool IsReady();
+    int GetServiceCount();
+    int GetService(int idx, int* serviceId, int* pmtPid);
+    int GetPmtPid(int serviceId, int* pmtPid);
 
-	void	OnTsPacket(byte* tsPacket);
-  void  Reset(IChannelScanCallback* callback,bool waitForVCT);
-	void  OnNewSection(CSection& section);
-  int PATRequest(CSection& sections, int SID);
-  BOOL        IsReady();
-  int         Count();
-  bool        GetChannel(int index, CChannelInfo& info);
-  void        Dump();
-	void        OnSdtReceived(const CChannelInfo& sdtInfo);
-	void				OnPmtReceived2(int pid, int serviceId, int pcrPid, bool hasCaDescriptor, vector<PidInfo2> pidInfo);
-  void        OnChannel(const CChannelInfo& info);
-
-private:
-	CCriticalSection m_section;
-  CVirtualChannelTableParser m_vctParser;
-  CSdtParser                 m_sdtParser;
-	CNITDecoder                m_nitDecoder;
-
-  void                       CleanUp();
-	void											 AnalyzePidInfo(vector<PidInfo2> pidInfo,int &hasVideo, int &hasAudio);
-	bool											 PmtParserExists(int pid,int serviceId);
-	
-	vector<CPmtParser*>	m_pmtParsers;
-  typedef vector<CPmtParser*> ::iterator itPmtParser;
-
-  map<int,CChannelInfo> m_mapChannels;
-  typedef map<int,CChannelInfo> ::iterator itChannels;
-  bool m_bDumped;
-	IChannelScanCallback* m_pCallback;
-  DWORD                 m_tickCount;
-  CTsHeader             m_tsHeader;
-	bool									m_finished;
-	bool									m_waitForVCT;
+  private:
+    IPatCallBack* m_pCallBack;
+    map<int, bool> m_mSeenSections;
+    bool m_bIsReady;
+    map<int, int> m_mServices;
 };

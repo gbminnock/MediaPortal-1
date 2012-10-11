@@ -1153,7 +1153,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components
     {
       if (_analogVideoDecoder != null && analogChannel.MediaType == MediaTypeEnum.TV)
       {
-        _analogVideoDecoder.put_VCRHorizontalLocking(analogChannel.IsVCRSignal);
+        _analogVideoDecoder.put_VCRHorizontalLocking(analogChannel.IsVcrSignal);
       }
     }
 

@@ -26,7 +26,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 {
   /// <summary>
-  /// class holding all tuning details for radio webstream channels
+  /// A class capable of holding the tuning parameter details required to tune a radio web stream.
   /// </summary>
   [Serializable]
   public class RadioWebStreamChannel : IChannel
@@ -35,7 +35,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 
     private string _channelName;
     private string _url;
-    private Country _country;
 
     #endregion
 
@@ -46,10 +45,8 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     /// </summary>
     public RadioWebStreamChannel()
     {
-      CountryCollection collection = new CountryCollection();
-      _country = collection.GetTunerCountryFromID(31);
-      Name = String.Empty;
-      Url = String.Empty;
+      _channelName = String.Empty;
+      _url = String.Empty;
     }
 
     #endregion
@@ -57,16 +54,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #region properties
 
     /// <summary>
-    /// gets/sets the country
-    /// </summary>
-    public Country Country
-    {
-      get { return _country; }
-      set { _country = value; }
-    }
-
-    /// <summary>
-    /// gets/sets the channel name
+    /// Get/set the channel's name.
     /// </summary>
     public string Name
     {
@@ -75,7 +63,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the url
+    /// Get/set the channel's URL.
     /// </summary>
     public string Url
     {
@@ -86,77 +74,90 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 
     #endregion
 
+    #region object overrides
+
     /// <summary>
     /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
     /// </returns>
     public override string ToString()
     {
       string line = "radio:";
-      line += String.Format("{0} Url:{1} Country:{2}", Name, Url, Country.Name);
+      line += String.Format("{0} Url:{1}", Name, Url);
       return line;
     }
 
-
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
     /// <returns>
-    /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
+    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
     /// </returns>
     public override bool Equals(object obj)
     {
-      if ((obj as RadioWebStreamChannel) == null)
-      {
-        return false;
-      }
       RadioWebStreamChannel ch = obj as RadioWebStreamChannel;
-      if (ch.Country.Id != Country.Id)
+      if (ch == null)
       {
         return false;
       }
-      if (ch.Name != Name)
+
+      if (!ch.Name.Equals(_channelName))
       {
         return false;
       }
-      if (ch.Url != Url)
+      if (!ch.Url.Equals(_url))
       {
         return false;
       }
+
       return true;
     }
 
     /// <summary>
     /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
     /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"></see>.
-    /// </returns>
+    /// <returns>a hash code for the current <see cref="T:System.Object"></see></returns>
     public override int GetHashCode()
     {
-      return base.GetHashCode() ^ _channelName.GetHashCode() ^ _url.GetHashCode() ^
-             _country.GetHashCode();
+      return base.GetHashCode() ^ _channelName.GetHashCode() ^ _url.GetHashCode();
     }
 
+    #endregion
+
+    #region ICloneable member
+
     /// <summary>
-    /// Checks if the given channel and this instance are on the different transponder
+    /// Clone the channel instance.
     /// </summary>
-    /// <param name="channel">Channel to check</param>
-    /// <returns>true, if the channels are on the same transponder</returns>
+    /// <returns>a shallow clone of the channel instance</returns>
+    public object Clone()
+    {
+      return this.MemberwiseClone();
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Check if the given channel and this instance are on different transponders.
+    /// </summary>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
     public bool IsDifferentTransponder(IChannel channel)
     {
       return true;
     }
 
     /// <summary>
-    /// returns whether this channel is FreeToAir
+    /// Get a channel instance with properties set to enable tuning of this channel.
     /// </summary>
-    public bool FreeToAir
+    /// <returns>a channel instance with parameters adjusted as necessary</returns>
+    public IChannel GetTuningChannel()
     {
-      get { return true; }
+      // No adjustments required.
+      return (IChannel)this.Clone();
     }
 
     public MediaTypeEnum MediaType

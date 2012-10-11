@@ -35,8 +35,9 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       this.checkBoxEnableChannelMoveDetection = new System.Windows.Forms.CheckBox();
       this.checkBoxCreateSignalGroup = new System.Windows.Forms.CheckBox();
       this.checkBoxAdvancedTuning = new System.Windows.Forms.CheckBox();
-      this.mpGrpAdvancedTuning = new MPGroupBox();
-      this.mpLabel2 = new MPLabel();
+      this.mpGrpAdvancedTuning = new MediaPortal.UserInterface.Controls.MPGroupBox();
+      this.mpLabel7 = new MediaPortal.UserInterface.Controls.MPLabel();
+      this.mpLabel2 = new MediaPortal.UserInterface.Controls.MPLabel();
       this.groupBox2 = new System.Windows.Forms.GroupBox();
       this.scanNIT = new System.Windows.Forms.RadioButton();
       this.scanSingleTransponder = new System.Windows.Forms.RadioButton();
@@ -136,9 +137,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       // 
       // mpGrpAdvancedTuning
       // 
-      this.mpGrpAdvancedTuning.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                  | System.Windows.Forms.AnchorStyles.Left)
-                  | System.Windows.Forms.AnchorStyles.Right)));
       this.mpGrpAdvancedTuning.Controls.Add(this.mpLabel7);
       this.mpGrpAdvancedTuning.Controls.Add(this.mpLabel2);
       this.mpGrpAdvancedTuning.Controls.Add(this.groupBox2);
@@ -149,11 +147,20 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       this.mpGrpAdvancedTuning.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
       this.mpGrpAdvancedTuning.Location = new System.Drawing.Point(2, 257);
       this.mpGrpAdvancedTuning.Name = "mpGrpAdvancedTuning";
-      this.mpGrpAdvancedTuning.Size = new System.Drawing.Size(542, 123);
+      this.mpGrpAdvancedTuning.Size = new System.Drawing.Size(441, 122);
       this.mpGrpAdvancedTuning.TabIndex = 8;
       this.mpGrpAdvancedTuning.TabStop = false;
       this.mpGrpAdvancedTuning.Text = "Advanced tuning options";
       this.mpGrpAdvancedTuning.Visible = false;
+      // 
+      // mpLabel7
+      // 
+      this.mpLabel7.AutoSize = true;
+      this.mpLabel7.Location = new System.Drawing.Point(154, 54);
+      this.mpLabel7.Name = "mpLabel7";
+      this.mpLabel7.Size = new System.Drawing.Size(29, 13);
+      this.mpLabel7.TabIndex = 14;
+      this.mpLabel7.Text = "MHz";
       // 
       // mpLabel2
       // 
@@ -169,7 +176,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       this.groupBox2.Controls.Add(this.scanNIT);
       this.groupBox2.Controls.Add(this.scanSingleTransponder);
       this.groupBox2.Controls.Add(this.scanPredefProvider);
-      this.groupBox2.Location = new System.Drawing.Point(267, 16);
+      this.groupBox2.Location = new System.Drawing.Point(249, 19);
       this.groupBox2.Name = "groupBox2";
       this.groupBox2.Size = new System.Drawing.Size(174, 89);
       this.groupBox2.TabIndex = 15;
@@ -406,15 +413,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       this.tabPageCIMenu.Size = new System.Drawing.Size(550, 407);
       this.tabPageCIMenu.TabIndex = 1;
       this.tabPageCIMenu.Text = "CI Menu";
-      // 
-      // mpLabel7
-      // 
-      this.mpLabel7.AutoSize = true;
-      this.mpLabel7.Location = new System.Drawing.Point(154, 54);
-      this.mpLabel7.Name = "mpLabel7";
-      this.mpLabel7.Size = new System.Drawing.Size(29, 13);
-      this.mpLabel7.TabIndex = 14;
-      this.mpLabel7.Text = "MHz";
       // 
       // CardDvbT
       // 

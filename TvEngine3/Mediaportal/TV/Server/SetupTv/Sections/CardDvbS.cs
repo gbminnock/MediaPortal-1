@@ -39,6 +39,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using TvLibrary.Interfaces.Device;
 using DirectShowLib.BDA;
 using System.Xml.Serialization;
 using Mediaportal.TV.Server.TVService.Interfaces.Services;
@@ -113,7 +114,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           tuneChannel.InnerFecRate = this.InnerFecRate;
           //Grab the Pilot & Roll-off settings
           tuneChannel.Pilot = this.Pilot;
-          tuneChannel.Rolloff = this.Rolloff;
+          tuneChannel.RollOff = this.Rolloff;
           return tuneChannel;
         }
       }
@@ -205,7 +206,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       InitializeComponent();
       //insert complete ci menu dialog to tab
       Card dbCard = ServiceAgents.Instance.CardServiceAgent.GetCard(_cardNumber, CardIncludeRelationEnum.None);
-      if (dbCard.CAM == true)
+      if (dbCard.UseConditionalAccess == true)
       {
         ciMenuDialog = new CI_Menu_Dialog(_cardNumber);
         this.tabPageCIMenu.Controls.Add(ciMenuDialog);
@@ -601,8 +602,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                                        "RF",
                                        "16 APSK",
                                        "32 APSK",
-                                       "QPSK2 (DVB-S2)",
-                                       "8 PSK2 (DVB-S2)",
+                                       "QPSK (DVB-S2)",
+                                       "8 PSK (DVB-S2)",
                                        "DirectTV"
                                      });
       mpComboBoxMod.SelectedIndex = 0;
@@ -650,9 +651,13 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
       //List<SimpleFileName> satellites = fileFilters.AllFiles;
       List<SatelliteContext> satellites = LoadSatellites();
+      IList<LnbType> tempLnbTypes = LnbType.ListAll();
+      LnbType[] lnbTypes = new LnbType[tempLnbTypes.Count];
+      tempLnbTypes.CopyTo(lnbTypes, 0);
+
       MPComboBox[] mpTrans = new MPComboBox[] {mpTransponder1, mpTransponder2, mpTransponder3, mpTransponder4};
-      MPComboBox[] mpDisEqc = new MPComboBox[] {mpDisEqc1, mpDisEqc2, mpDisEqc3, mpDisEqc4};
-      MPComboBox[] mpBands = new MPComboBox[] {mpBand1, mpBand2, mpBand3, mpBand4};
+      MPComboBox[] mpComboDiseqc = new MPComboBox[] {mpComboDiseqc1, mpComboDiseqc2, mpComboDiseqc3, mpComboDiseqc4};
+      MPComboBox[] mpComboLnbType = new MPComboBox[] {mpComboLnbType1, mpComboLnbType2, mpComboLnbType3, mpComboLnbType4};
       MPCheckBox[] mpLNBs = new MPCheckBox[] {mpLNB1, mpLNB2, mpLNB3, mpLNB4};
       MPComboBox curBox;
       MPCheckBox curCheck;
@@ -675,19 +680,41 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           }
         }
 
-        curBox = mpDisEqc[ctlIndex];
+        curBox = mpComboDiseqc[ctlIndex];
         curBox.Items.Clear();
-        curBox.Items.Add(DisEqcType.None);
-        curBox.Items.Add(DisEqcType.SimpleA);
-        curBox.Items.Add(DisEqcType.SimpleB);
-        curBox.Items.Add(DisEqcType.Level1AA);
-        curBox.Items.Add(DisEqcType.Level1AB);
-        curBox.Items.Add(DisEqcType.Level1BA);
-        curBox.Items.Add(DisEqcType.Level1BB);
+        curBox.Items.AddRange(new object[] {
+            "None",
+            // Simple DiSEqC (burst)
+            "Simple A (tone burst)",
+            "Simple B (data burst)",
+            // DiSEqC 1.0
+            "Port A (option A, position A)",
+            "Port B (option A, position B)",
+            "Port C (option B, position A)",
+            "Port D (option B, position B)",
+            // DiSEqC 1.1+
+            "Port 1",
+            "Port 2",
+            "Port 3",
+            "Port 4",
+            "Port 5",
+            "Port 6",
+            "Port 7",
+            "Port 8",
+            "Port 9",
+            "Port 10",
+            "Port 11",
+            "Port 12",
+            "Port 13",
+            "Port 14",
+            "Port 15",
+            "Port 16"});
         curBox.SelectedIndex =
           Int32.Parse(ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue(String.Format("dvbs{0}DiSEqC{1}", _cardNumber, idx), "0").Value);
 
-        curBox = mpBands[ctlIndex];
+        curBox = mpComboLnbType[ctlIndex];
+        curBox.Items.Clear();
+        curBox.Items.AddRange((object[])lnbTypes);
         curBox.SelectedIndex =
           Int32.Parse(ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue(String.Format("dvbs{0}band{1}", _cardNumber, idx), "0").Value);
 
@@ -718,7 +745,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       mpLNB1_CheckedChanged(null, null);
 
       checkBoxAdvancedTuning.Checked = false;
-      //grpManualScan.Enabled = false;
       checkBoxAdvancedTuning.Enabled = true;
 
       checkBoxCreateSignalGroup.Text = "\"" + TvConstants.TvGroupNames.DVBS + "\"";
@@ -891,25 +917,25 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         _radioChannelsUpdated = 0;
 
         if (mpLNB1.Checked)
-          Scan(1, (BandType)mpBand1.SelectedIndex, (DisEqcType)mpDisEqc1.SelectedIndex,
+          Scan(1, (LnbType)mpComboLnbType1.SelectedItem, (DiseqcPort)mpComboDiseqc1.SelectedIndex,
                (SatelliteContext)mpTransponder1.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB2.Checked)
-          Scan(2, (BandType)mpBand2.SelectedIndex, (DisEqcType)mpDisEqc2.SelectedIndex,
+          Scan(2, (LnbType)mpComboLnbType2.SelectedItem, (DiseqcPort)mpComboDiseqc2.SelectedIndex,
                (SatelliteContext)mpTransponder2.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB3.Checked)
-          Scan(3, (BandType)mpBand3.SelectedIndex, (DisEqcType)mpDisEqc3.SelectedIndex,
+          Scan(3, (LnbType)mpComboLnbType3.SelectedItem, (DiseqcPort)mpComboDiseqc3.SelectedIndex,
                (SatelliteContext)mpTransponder3.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB4.Checked)
-          Scan(4, (BandType)mpBand4.SelectedIndex, (DisEqcType)mpDisEqc4.SelectedIndex,
+          Scan(4, (LnbType)mpComboLnbType4.SelectedItem, (DiseqcPort)mpComboDiseqc4.SelectedIndex,
                (SatelliteContext)mpTransponder4.SelectedItem);
 
         listViewStatus.Items.Add(
@@ -936,7 +962,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       }
     }
 
-    private void Scan(int lnb, BandType bandType, DisEqcType diseqc, SatelliteContext context)
+    private void Scan(int lnb, LnbType lnbType, DiseqcPort diseqc, SatelliteContext context)
     {
       // all transponders to scan
       var dvbsChannels = new List<DVBSChannel>();
@@ -975,8 +1001,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         case ScanTypes.NIT:
           _transponders.Clear();
           DVBSChannel tuneChannel = GetManualTuning();
-          tuneChannel.DisEqc = diseqc;
-          tuneChannel.BandType = bandType;
+          tuneChannel.Diseqc = diseqc;
+          tuneChannel.LnbType = lnbType;
           tuneChannel.SatelliteIndex = position;
 
           listViewStatus.Items.Clear();
@@ -1032,8 +1058,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         // scanning is not enabled then skip it. Note that
         // a roll-off of .35 is the default for standard
         // DVB-S.
-        if ((tuneChannel.Rolloff == RollOff.Twenty ||
-             tuneChannel.Rolloff == RollOff.TwentyFive ||
+        if ((tuneChannel.RollOff == RollOff.Twenty ||
+             tuneChannel.RollOff == RollOff.TwentyFive ||
              tuneChannel.Pilot == Pilot.On) &&
             !checkBoxEnableDVBS2.Checked)
         {
@@ -1042,16 +1068,9 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
         scanIndex++;
 
-        tuneChannel.DisEqc = diseqc;
-        tuneChannel.BandType = bandType;
+        tuneChannel.Diseqc = diseqc;
+        tuneChannel.LnbType = lnbType;
         tuneChannel.SatelliteIndex = position;
-        if (bandType == BandType.Circular)
-        {
-          if (tuneChannel.Polarisation == Polarisation.LinearH)
-            tuneChannel.Polarisation = Polarisation.CircularL;
-          else if (tuneChannel.Polarisation == Polarisation.LinearV)
-            tuneChannel.Polarisation = Polarisation.CircularR;
-        }
         string line = String.Format("lnb:{0} {1}tp- {2} {3} {4}", lnb, 1 + index, tuneChannel.Frequency,
                                     tuneChannel.Polarisation, tuneChannel.SymbolRate);
         ListViewItem item = listViewStatus.Items.Add(new ListViewItem(line));
@@ -1468,14 +1487,13 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       tuneChannel.SymbolRate = transponder.SymbolRate;
       tuneChannel.ModulationType = transponder.Modulation;
       tuneChannel.Pilot = transponder.Pilot;
-      tuneChannel.Rolloff = transponder.Rolloff;
+      tuneChannel.RollOff = transponder.Rolloff;
       tuneChannel.InnerFecRate = transponder.InnerFecRate;
-      tuneChannel.BandType = BandType.Universal;
-      tuneChannel.DisEqc = DisEqcType.None;
-      if (mpBand1.SelectedIndex >= 0)
-        tuneChannel.BandType = (BandType)mpBand1.SelectedIndex;
-      if (mpDisEqc1.SelectedIndex >= 0)
-        tuneChannel.DisEqc = (DisEqcType)mpDisEqc1.SelectedIndex;
+      tuneChannel.Diseqc = DiseqcPort.None;
+      if (mpComboLnbType1.SelectedIndex >= 0)
+        tuneChannel.LnbType = (LnbType)mpComboLnbType1.SelectedItem;
+      if (mpComboDiseqc1.SelectedIndex >= 0)
+        tuneChannel.Diseqc = (DiseqcPort)mpComboDiseqc1.SelectedIndex;
       _user.CardId = _cardNumber;
       ServiceAgents.Instance.ControllerServiceAgent.StopCard(_user.CardId);
       _user.CardId = _cardNumber;
@@ -1644,60 +1662,24 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
     #region LNB selection tab
 
-    private void chkOverrideLNB_CheckedChanged(object sender, EventArgs e)
-    {
-      textBoxLNBLo.Enabled = chkOverrideLNB.Checked;
-      textBoxLNBHi.Enabled = chkOverrideLNB.Checked;
-      textBoxLNBSwitch.Enabled = chkOverrideLNB.Checked;
-    }
-
     private void mpLNB1_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder1.Visible = mpBand1.Visible = mpDisEqc1.Visible = mpLNB1.Checked;
+      mpTransponder1.Visible = mpComboLnbType1.Visible = mpComboDiseqc1.Visible = mpLNB1.Checked;
     }
 
     private void mpLNB2_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder2.Visible = mpBand2.Visible = mpDisEqc2.Visible = mpLNB2.Checked;
+      mpTransponder2.Visible = mpComboLnbType2.Visible = mpComboDiseqc2.Visible = mpLNB2.Checked;
     }
 
     private void mpLNB3_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder3.Visible = mpBand3.Visible = mpDisEqc3.Visible = mpLNB3.Checked;
+      mpTransponder3.Visible = mpComboLnbType3.Visible = mpComboDiseqc3.Visible = mpLNB3.Checked;
     }
 
     private void mpLNB4_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder4.Visible = mpBand4.Visible = mpDisEqc4.Visible = mpLNB4.Checked;
-    }
-
-    private void mpBand1_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      if (_enableEvents == false)
-        return;
-      if (chkOverrideLNB.Checked)
-        return;
-      int lof1, lof2, sw;
-      ScanParameters p = new ScanParameters();
-      BandTypeConverter.GetDefaultLnbSetup(p, (BandType)mpBand1.SelectedIndex, out lof1, out lof2, out sw);
-      textBoxLNBLo.Text = lof1.ToString();
-      textBoxLNBHi.Text = lof2.ToString();
-      textBoxLNBSwitch.Text = sw.ToString();
-    }
-
-    private void mpBand2_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
-    }
-
-    private void mpBand3_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
-    }
-
-    private void mpBand4_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
+      mpTransponder4.Visible = mpComboLnbType4.Visible = mpComboDiseqc4.Visible = mpLNB4.Checked;
     }
 
     private void checkEnableDVBS2_CheckedChanged(object sender, EventArgs e)
@@ -1781,8 +1763,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       Control[] scanControls = new Control[]
                                  {
                                    mpLNB1, mpLNB2, mpLNB3, mpLNB4,
-                                   mpDisEqc1, mpDisEqc2, mpDisEqc3, mpDisEqc4,
-                                   mpBand1, mpBand2, mpBand3, mpBand4,
+                                   mpComboDiseqc1, mpComboDiseqc2, mpComboDiseqc3, mpComboDiseqc4,
+                                   mpComboLnbType1, mpComboLnbType2, mpComboLnbType3, mpComboLnbType4,
                                    mpTransponder1, mpTransponder2, mpTransponder3, mpTransponder4,
                                    checkBoxCreateGroupsSat, checkBoxCreateGroups, checkBoxCreateSignalGroup,
                                    checkBoxEnableDVBS2, checkBoxEnableChannelMoveDetection, checkBoxAdvancedTuning,
@@ -1873,7 +1855,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       t.InnerFecRate = ch.InnerFecRate;
       t.Modulation  = ch.ModulationType;
       t.Pilot = ch.Pilot;
-      t.Rolloff = ch.Rolloff;
+      t.Rolloff = ch.RollOff;
       t.SymbolRate = ch.SymbolRate;
       t.Polarisation = ch.Polarisation;
       return t;
@@ -1890,12 +1872,12 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       if (checkBoxEnableDVBS2.Checked)
       {
         tuneChannel.Pilot = (Pilot)mpComboBoxPilot.SelectedIndex - 1;
-        tuneChannel.Rolloff = (RollOff)mpComboBoxRollOff.SelectedIndex - 1;
+        tuneChannel.RollOff = (RollOff)mpComboBoxRollOff.SelectedIndex - 1;
       }
       else
       {
         tuneChannel.Pilot = Pilot.NotSet;
-        tuneChannel.Rolloff = RollOff.NotSet;
+        tuneChannel.RollOff = RollOff.NotSet;
       }
       return tuneChannel;
     }
@@ -1930,6 +1912,11 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
     {
       mpGrpAdvancedTuning.Visible = checkBoxAdvancedTuning.Checked;
       SetControlStates();
+    }
+
+    private void mpCombo_MouseHover(object sender, EventArgs e)
+    {
+      toolTip1.SetToolTip((Control)sender, ((MPComboBox)sender).SelectedItem.ToString());
     }
   }
 }

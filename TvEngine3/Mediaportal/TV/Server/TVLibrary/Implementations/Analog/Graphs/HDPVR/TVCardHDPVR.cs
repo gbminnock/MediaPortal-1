@@ -70,7 +70,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     private IBaseFilter _filterEncoder;
     private IBaseFilter _filterTsWriter;
     private Configuration _configuration;
-    private AnalogChannel _previousChannel;
     private IQuality _qualityControl;
 
     /// <summary>
@@ -117,14 +116,8 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
         _encoderDeviceName = "Hauppauge Colossus TS Encoder " + deviceNumber;
       }
 
-      _mapSubChannels = new Dictionary<Int32, BaseSubChannel>();
       _supportsSubChannels = true;
-      _minChannel = 0;
-      _maxChannel = 128;
-      _camType = CamType.Default;
-      _conditionalAccess = null;
-      _cardType = CardType.Analog;
-      _epgGrabbing = false;
+      _tunerType = CardType.Analog;
       _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
       Configuration.writeConfiguration(_configuration);
     }
@@ -134,14 +127,18 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     #region public methods
 
     /// <summary>
-    /// Method to check if card can tune to the channel specified
+    /// Check if the tuner can tune to a specific channel.
     /// </summary>
-    /// <returns>true if card can tune to the channel otherwise false</returns>
-    public bool CanTune(IChannel channel)
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
+    public override bool CanTune(IChannel channel)
     {
+      // My understanding is that the HD-PVR and Colossus are not able to capture audio-only streams. The
+      // driver doesn't seem to create PMT if a video stream is not detected.
       if ((channel as AnalogChannel) == null || channel.MediaType == MediaTypeEnum.Radio)
+
       {
-        return false;
+        return true;
       }
       return true;
     }
@@ -329,10 +326,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     #region subchannel management
 
     /// <summary>
-    /// Allocates a new instance of HDPVRChannel which handles the new subchannel
+    /// Allocate a new subchannel instance.
     /// </summary>
-    /// <returns>handle for to the subchannel</returns>
-    private Int32 GetNewSubChannel(IChannel channel)
+    /// <param name="channel">The service or channel to associate with the subchannel.</param>
+    /// <returns>a handle for the subchannel</returns>
+    protected override int CreateNewSubChannel(IChannel channel)
     {
       int id = _subChannelId++;
       Log.Info("HDPVR: GetNewSubChannel:{0} #{1}", _mapSubChannels.Count, id);
@@ -340,6 +338,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       subChannel.Parameters = Parameters;
       subChannel.CurrentChannel = channel;
       _mapSubChannels[id] = subChannel;
+      FireNewSubChannelEvent(id);
       return id;
     }
 
@@ -350,20 +349,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     /// <summary>
     /// Get/Set the quality
     /// </summary>
-    public IQuality Quality
+    public override IQuality Quality
     {
       get { return _qualityControl; }
-      set { }
     }
 
     /// <summary>
     /// Property which returns true if card supports quality control
     /// </summary>
-    public bool SupportsQualityControl
+    public override bool SupportsQualityControl
     {
       get
       {
-        if (_graphState == GraphState.Idle)
+        if (!_isDeviceInitialised)
         {
           BuildGraph();
         }
@@ -374,7 +372,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     /// <summary>
     /// Reloads the quality control configuration
     /// </summary>
-    public void ReloadCardConfiguration()
+    public override void ReloadCardConfiguration()
     {
       if (_qualityControl != null)
       {
@@ -389,51 +387,22 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     #region properties
 
     /// <summary>
-    /// A derrived class should update the signal informations of the tv cards
+    /// Update the tuner signal status statistics.
     /// </summary>
-    protected override void UpdateSignalQuality(bool force)
+    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
+    protected override void UpdateSignalStatus(bool force)
     {
-      UpdateSignalQuality();
-    }
-
-    /// <summary>
-    /// When the tuner is locked onto a signal this property will return true
-    /// otherwise false
-    /// </summary>
-    protected override void UpdateSignalQuality()
-    {
-      TimeSpan ts = DateTime.Now - _lastSignalUpdate;
-      if (ts.TotalMilliseconds < 5000 || _graphState == GraphState.Idle)
+      if (!_isDeviceInitialised)
       {
         _tunerLocked = false;
+        _signalLevel = 0;
+        _signalQuality = 0;
       }
       else
       {
         _tunerLocked = true;
-      }
-      if (_tunerLocked)
-      {
         _signalLevel = 100;
         _signalQuality = 100;
-      }
-      else
-      {
-        _signalLevel = 0;
-        _signalQuality = 0;
-      }
-    }
-
-    /// <summary>
-    /// Gets or sets the unique id of this card
-    /// </summary>
-    public override int CardId
-    {
-      get { return _cardId; }
-      set
-      {
-        _cardId = value;
-        _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
-        Configuration.writeConfiguration(_configuration);
       }
     }
 
@@ -444,16 +413,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     /// <summary>
     /// Disposes this instance.
     /// </summary>
-    public virtual void Dispose()
+    public override void Dispose()
     {
       if (_graphBuilder == null)
         return;
       Log.WriteFile("HDPVR:  Dispose()");
-      if (_graphState == GraphState.TimeShifting || _graphState == GraphState.Recording)
-      {
-        // Stop the graph first. To ensure that the timeshift files are no longer blocked
-        StopGraph();
-      }
+
       FreeAllSubChannels();
       // Decompose the graph
       IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
@@ -463,6 +428,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       }
       // Decompose the graph
       mediaCtl.Stop();
+
+      base.Dispose();
+
       FilterGraphTools.RemoveAllFilters(_graphBuilder);
       Log.WriteFile("HDPVR:  All filters removed");
       if (_filterCrossBar != null)
@@ -489,7 +457,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       Release.ComObject("Graphbuilder", _graphBuilder);
       _graphBuilder = null;
       DevicesInUse.Instance.Remove(_tunerDevice);
-      _graphState = GraphState.Idle;
       if (_crossBarDevice != null)
       {
         DevicesInUse.Instance.Remove(_crossBarDevice);
@@ -505,15 +472,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
         DevicesInUse.Instance.Remove(_encoderDevice);
         _encoderDevice = null;
       }
-      _graphState = GraphState.Idle;
+      _isDeviceInitialised = false;
       Log.WriteFile("HDPVR:  dispose completed");
     }
-
-    public void CancelTune(int subChannel)
-    {
-    }
-
-    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
 
     #endregion
 
@@ -526,7 +487,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
     {
       if (_cardId == 0)
       {
-        GetPreloadBitAndCardId();
         _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
         Configuration.writeConfiguration(_configuration);
       }
@@ -536,7 +496,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       Log.WriteFile("HDPVR: build graph");
       try
       {
-        if (_graphState != GraphState.Idle)
+        if (_isDeviceInitialised)
         {
           Log.WriteFile("HDPVR: graph already built!");
           throw new TvException("Graph already built");
@@ -556,7 +516,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
           Log.WriteFile("HDPVR: No quality control support found");
         }
 
-        _graphState = GraphState.Created;
+        _isDeviceInitialised = true;
         _configuration.Graph.Crossbar.Name = _crossBarDevice.Name;
         _configuration.Graph.Crossbar.VideoPinMap = _videoPinMap;
         _configuration.Graph.Crossbar.AudioPinMap = _audioPinMap;
@@ -573,7 +533,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       {
         Log.Write(ex);
         Dispose();
-        _graphState = GraphState.Idle;
+        _isDeviceInitialised = false;
         throw;
       }
     }
@@ -866,7 +826,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
 
     #region private helper
 
-    private void PerformTuning(IChannel channel)
+    /// <summary>
+    /// Actually tune to a channel.
+    /// </summary>
+    /// <param name="channel">The channel to tune to.</param>
+    protected override void PerformTuning(IChannel channel)
     {
       Log.WriteFile("HDPVR: Tune");
       AnalogChannel analogChannel = channel as AnalogChannel;
@@ -874,43 +838,40 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
       {
         throw new NullReferenceException();
       }
+      AnalogChannel previousChannel = _previousChannel as AnalogChannel;
+      if (_previousChannel != null && previousChannel == null)
+      {
+        throw new NullReferenceException();
+      }
 
       // Set up the crossbar.
       IAMCrossbar crossBarFilter = _filterCrossBar as IAMCrossbar;
 
-      // Video
-      if ((_previousChannel == null || _previousChannel.VideoSource != analogChannel.VideoSource) &&
-        _videoPinMap.ContainsKey(analogChannel.VideoSource))
+      if (_previousChannel == null || previousChannel.VideoSource != analogChannel.VideoSource)
       {
         Log.WriteFile("HDPVR:   video input -> {0}", analogChannel.VideoSource);
         crossBarFilter.Route(_videoOutPinIndex, _videoPinMap[analogChannel.VideoSource]);
       }
 
-      // Audio
-      if (analogChannel.AudioSource == AnalogChannel.AudioInputType.Automatic)
-      {
-        if (_videoPinRelatedAudioMap.ContainsKey(analogChannel.VideoSource))
+        // Automatic Audio
+        if (analogChannel.AudioSource == AnalogChannel.AudioInputType.Automatic)
         {
           Log.WriteFile("HDPVR:   audio input -> (auto)");
           crossBarFilter.Route(_audioOutPinIndex, _videoPinRelatedAudioMap[analogChannel.VideoSource]);
         }
       }
-      else if ((_previousChannel == null || _previousChannel.AudioSource != analogChannel.AudioSource) &&
+
+      // Audio
+      if ((_previousChannel == null || previousChannel.AudioSource != analogChannel.AudioSource) &&
+        analogChannel.AudioSource != AnalogChannel.AudioInputType.Automatic &&
         _audioPinMap.ContainsKey(analogChannel.AudioSource))
       {
         Log.WriteFile("HDPVR:   audio input -> {0}", analogChannel.AudioSource);
         crossBarFilter.Route(_audioOutPinIndex, _audioPinMap[analogChannel.AudioSource]);
       }
 
-      _lastSignalUpdate = DateTime.MinValue;
-      _tunerLocked = false;
       _previousChannel = analogChannel;
       Log.WriteFile("HDPVR: Tuned to channel {0}", channel.Name);
-      if (_graphState == GraphState.Idle)
-      {
-        _graphState = GraphState.Created;
-      }
-      _lastSignalUpdate = DateTime.MinValue;
     }
 
     /// <summary>
@@ -1103,21 +1064,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
         }
       }
     }
-
-    #endregion
-
-    #region abstract implemented Methods
-
-    /// <summary>
-    /// A derrived class should activate / deactivate the scanning
-    /// </summary>
-    protected override void OnScanning() {}
-
-    /// <summary>
-    /// A derrived class should activate / deactivate the epg grabber
-    /// </summary>
-    /// <param name="value">Mode</param>
-    protected override void UpdateEpgGrabber(bool value) {}
 
     #endregion
   }

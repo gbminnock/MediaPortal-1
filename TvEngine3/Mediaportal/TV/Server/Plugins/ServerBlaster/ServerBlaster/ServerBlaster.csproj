@@ -129,6 +129,10 @@
       <Name>TvLibrary.Interfaces</Name>
       <Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\TvLibrary.Utils\TvLibrary.Utils.csproj">
+      <Project>{954F9929-7FDA-4F59-88E3-FD2B9A7B6E6E}</Project>
+      <Name>TvLibrary.Utils</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\TvService.Interfaces\TvService.Interfaces.csproj">
       <Project>{A2BFFBDD-3BEA-4B68-94F1-C34D2BE10AEB}</Project>
       <Name>TvService.Interfaces</Name>

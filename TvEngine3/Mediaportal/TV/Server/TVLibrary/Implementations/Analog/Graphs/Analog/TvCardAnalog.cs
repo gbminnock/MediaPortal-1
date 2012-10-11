@@ -67,27 +67,25 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     private IBaseFilter _tsFileSink;
     private IQuality _qualityControl;
     private Configuration _configuration;
+    // Maximum and minimum channel numbers that the tuner is physically capable of tuning to.
+    private int _minChannel = -1;
+    private int _maxChannel = -1;
 
     #endregion
 
     #region ctor
 
     ///<summary>
-    /// Constrcutor for the analog
+    /// Constructor for the analog
     ///</summary>
     ///<param name="device">Tuner Device</param>
     public TvCardAnalog(DsDevice device)
       : base(device)
     {
-      _parameters = new ScanParameters();
-      _mapSubChannels = new Dictionary<int, BaseSubChannel>();
       _supportsSubChannels = true;
       _minChannel = 0;
       _maxChannel = 128;
-      _camType = CamType.Default;
-      _conditionalAccess = null;
-      _cardType = CardType.Analog;
-      _epgGrabbing = false;
+      _tunerType = CardType.Analog;
       _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
       Configuration.writeConfiguration(_configuration);
     }
@@ -97,12 +95,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     #region public methods
 
     /// <summary>
-    /// Method to check if card can tune to the channel specified
+    /// Check if the tuner can tune to a specific channel.
     /// </summary>
-    /// <returns>true if card can tune to the channel otherwise false</returns>
-    public bool CanTune(IChannel channel)
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
+    public override bool CanTune(IChannel channel)
     {
-      if ((channel as AnalogChannel) == null)
+      if (!(channel is AnalogChannel))
+      {
         return false;
       if (channel.MediaType == MediaTypeEnum.Radio)
       {
@@ -207,64 +207,15 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
 
     #endregion
 
-    #region Channel linkage handling
+    #region scanning
 
     /// <summary>
-    /// Starts scanning for linkage info
+    /// Get the device's channel scanning interface.
     /// </summary>
-    public void StartLinkageScanner(BaseChannelLinkageScanner callback) {}
-
-    /// <summary>
-    /// Stops/Resets the linkage scanner
-    /// </summary>
-    public void ResetLinkageScanner() {}
-
-    /// <summary>
-    /// Returns the channel linkages grabbed
-    /// </summary>
-    public List<PortalChannel> ChannelLinkages
-    {
-      get { return null; }
-    }
-
-    #endregion
-
-    #region epg & scanning
-
-    /// <summary>
-    /// Grabs the epg.
-    /// </summary>
-    /// <param name="callback">The callback which gets called when epg is received or canceled.</param>
-    public void GrabEpg(BaseEpgGrabber callback) {}
-
-    /// <summary>
-    /// Start grabbing the epg while timeshifting
-    /// </summary>
-    public void GrabEpg() {}
-
-    /// <summary>
-    /// Aborts grabbing the epg. This also triggers the OnEpgReceived callback.
-    /// </summary>
-    public void AbortGrabbing() {}
-
-    /// <summary>
-    /// returns a list of all epg data for each channel found.
-    /// </summary>
-    /// <value>The epg.</value>
-    public List<EpgChannel> Epg
-    {
-      get { return null; }
-    }
-
-    /// <summary>
-    /// returns the ITVScanning interface used for scanning channels
-    /// </summary>
-    public ITVScanning ScanningInterface
+    public override ITVScanning ScanningInterface
     {
       get
       {
-        if (!CheckThreadId())
-          return null;
         return new AnalogScanning(this);
       }
     }
@@ -273,16 +224,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
 
     #region tuning & recording
 
-    /// <summary>
-    /// Scans the specified channel.
-    /// </summary>
-    /// <param name="subChannelId">The sub channel id.</param>
-    /// <param name="channel">The channel.</param>
-    /// <returns>true if succeeded else false</returns>
-    public ITvSubChannel Scan(int subChannelId, IChannel channel)
-    {
-      return Tune(subChannelId, channel);
-    }
 
     /// <summary>
     /// Tunes the specified channel.
@@ -290,12 +231,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <param name="subChannelId">The sub channel id.</param>
     /// <param name="channel">The channel.</param>
     /// <returns>true if succeeded else false</returns>
-    public ITvSubChannel Tune(int subChannelId, IChannel channel)
+    public override ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
       Log.WriteFile("analog:  Tune:{0}", channel);
       if (_graphState == GraphState.Idle)
       {
-        BuildGraph();
+        _encoder.UpdatePinVideo(channel.IsTv, _graphBuilder);
       }
       BaseSubChannel subChannel;
       if (_mapSubChannels.ContainsKey(subChannelId))
@@ -329,16 +270,18 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     #region subchannel management
 
     /// <summary>
-    /// Allocates a new instance of TvDvbChannel which handles the new subchannel
+    /// Allocate a new subchannel instance.
     /// </summary>
-    /// <returns>handle for to the subchannel</returns>
-    protected int GetNewSubChannel(IChannel channel)
+    /// <param name="channel">The service or channel to associate with the subchannel.</param>
+    /// <returns>a handle for the subchannel</returns>
+    protected override int CreateNewSubChannel(IChannel channel)
     {
       int id = _subChannelId++;
       Log.Info("analog:GetNewSubChannel:{0} #{1}", _mapSubChannels.Count, id);
 
       AnalogSubChannel subChannel = new AnalogSubChannel(this, id, _tvAudio, _capture.SupportsTeletext, _tsFileSink);
       _mapSubChannels[id] = subChannel;
+      FireNewSubChannelEvent(id);
       return id;
     }
 
@@ -349,20 +292,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <summary>
     /// Get/Set the quality
     /// </summary>
-    public IQuality Quality
+    public override IQuality Quality
     {
       get { return _qualityControl; }
-      set { }
     }
 
     /// <summary>
     /// Property which returns true if card supports quality control
     /// </summary>
-    public bool SupportsQualityControl
+    public override bool SupportsQualityControl
     {
       get
       {
-        if (_graphState == GraphState.Idle)
+        if (!_isDeviceInitialised)
         {
           BuildGraph();
         }
@@ -373,7 +315,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <summary>
     /// Reloads the card configuration
     /// </summary>
-    public void ReloadCardConfiguration()
+    public override void ReloadCardConfiguration()
     {
       if (_qualityControl != null)
       {
@@ -421,20 +363,16 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     }
 
     /// <summary>
-    /// When the tuner is locked onto a signal this property will return true
-    /// otherwise false
+    /// Update the tuner signal status statistics.
     /// </summary>
-    protected override void UpdateSignalQuality(bool force)
+    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
+    protected override void UpdateSignalStatus(bool force)
     {
-      _tunerLocked = false;
-      _signalLevel = 0;
-      _signalQuality = 0;
       if (!force)
       {
         TimeSpan ts = DateTime.Now - _lastSignalUpdate;
-        if (ts.TotalMilliseconds < 5000 || _graphState == GraphState.Idle)
+        if (ts.TotalMilliseconds < 5000)
         {
-          _tunerLocked = false;
           return;
         }
       }
@@ -442,15 +380,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       _tunerLocked = _tuner.TunerLocked;
       _signalLevel = _tuner.SignalLevel;
       _signalQuality = _tuner.SignalQuality;
-    }
-
-    /// <summary>
-    /// When the tuner is locked onto a signal this property will return true
-    /// otherwise false
-    /// </summary>
-    protected override void UpdateSignalQuality()
-    {
-      UpdateSignalQuality(false);
+      _tuner.UpdateSignalQuality();
+      _tunerLocked = _tuner.TunerLocked;
+      _signalPresent = _tunerLocked;
+      _signalLevel = _tuner.SignalLevel;
+      _signalQuality = _tuner.SignalQuality;
     }
 
     /// <summary>
@@ -474,19 +408,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <summary>
     /// Disposes this instance.
     /// </summary>
-    public virtual void Dispose()
+    public override void Dispose()
     {
       if (_graphBuilder == null)
         return;
       Log.WriteFile("analog:Dispose()");
-      if (!CheckThreadId())
-        return;
 
-      if (_graphState == GraphState.TimeShifting || _graphState == GraphState.Recording)
-      {
-        // Stop the graph first. To ensure that the timeshift files are no longer blocked
-        StopGraph();
-      }
       FreeAllSubChannels();
       IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
       if (mediaCtl == null)
@@ -495,6 +422,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       }
       // Decompose the graph
       mediaCtl.Stop();
+
+      base.Dispose();
+
       FilterGraphTools.RemoveAllFilters(_graphBuilder);
       Log.WriteFile("analog:All filters removed");
       if (_tuner != null)
@@ -537,15 +467,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       _rotEntry = null;
       Release.ComObject("Graphbuilder", _graphBuilder);
       _graphBuilder = null;
-      _graphState = GraphState.Idle;
+      _isDeviceInitialised = false;
       Log.WriteFile("analog: dispose completed");
     }
-
-    public void CancelTune(int subChannel)
-    {
-    }
-
-    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
 
     #endregion
 
@@ -558,7 +482,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     {
       if (_cardId == 0)
       {
-        GetPreloadBitAndCardId();
         _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
         Configuration.writeConfiguration(_configuration);
       }
@@ -567,7 +490,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       Log.WriteFile("analog: build graph");
       try
       {
-        if (_graphState != GraphState.Idle)
+        if (_isDeviceInitialised)
         {
           Log.WriteFile("analog: Graph already build");
           throw new TvException("Graph already build");
@@ -659,20 +582,20 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
         Log.WriteFile("analog: Graph is built");
         FilterGraphTools.SaveGraphFile(_graphBuilder, "analog.grf");
         ReloadCardConfiguration();
-        _graphState = GraphState.Created;
+        _isDeviceInitialised = true;
       }
       catch (TvExceptionSWEncoderMissing ex)
       {
         Log.Write(ex);
         Dispose();
-        _graphState = GraphState.Idle;
+        _isDeviceInitialised = false;
         throw;
       }
       catch (Exception ex)
       {
         Log.Write(ex);
         Dispose();
-        _graphState = GraphState.Idle;
+        _isDeviceInitialised = false;
         throw new TvExceptionGraphBuildingFailed("Graph building failed", ex);
       }
     }
@@ -685,8 +608,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     /// <returns></returns>
     private bool AddTsFileSink()
     {
-      if (!CheckThreadId())
-        return false;
       Log.WriteFile("analog:AddTsFileSink");
       _tsFileSink = (IBaseFilter)new MpFileWriter();
       int hr = _graphBuilder.AddFilter(_tsFileSink, "TsFileSink");
@@ -775,15 +696,10 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     #region private helper
 
     /// <summary>
-    /// Checks the thread id.
+    /// Actually tune to a channel.
     /// </summary>
-    /// <returns></returns>
-    private static bool CheckThreadId()
-    {
-      return true;
-    }
-
-    private void PerformTuning(IChannel channel)
+    /// <param name="channel">The channel to tune to.</param>
+    protected override void PerformTuning(IChannel channel)
     {
       AnalogChannel analogChannel = channel as AnalogChannel;
       _tuner.PerformTune(analogChannel);
@@ -791,11 +707,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
       _maxChannel = _tuner.MaxChannel;
       _crossbar.PerformTune(analogChannel);
       _capture.PerformTune(analogChannel);
-      _lastSignalUpdate = DateTime.MinValue;
-      if (_graphState == GraphState.Idle)
-        _graphState = GraphState.Created;
-      UpdateSignalQuality(true);
-      _lastSignalUpdate = DateTime.MinValue;
     }
 
     #endregion
@@ -833,21 +744,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
     {
       get { return _tuner.AudioFrequency; }
     }
-
-    #endregion
-
-    #region abstract implemented Methods
-
-    /// <summary>
-    /// A derrived class should activate / deactivate the scanning
-    /// </summary>
-    protected override void OnScanning() {}
-
-    /// <summary>
-    /// A derrived class should activate / deactivate the epg grabber
-    /// </summary>
-    /// <param name="value">Mode</param>
-    protected override void UpdateEpgGrabber(bool value) {}
 
     #endregion
   }

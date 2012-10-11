@@ -20,13 +20,18 @@
 
 using System.Collections.Generic;
 
-namespace TvLibrary.Interfaces
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
 {
   /// <summary>
   /// Interface for scanning new channels
   /// </summary>
   public interface ITVScanning
   {
+    /// <summary>
+    /// Disposes this instance.
+    /// </summary>
+    void Dispose();
+
     /// <summary>
     /// resets the scanner
     /// </summary>
@@ -48,5 +53,10 @@ namespace TvLibrary.Interfaces
     /// <param name="settings">ScanParameters to use while tuning</param>
     /// <returns></returns>
     List<IChannel> ScanNIT(IChannel channel, ScanParameters settings);
+
+    /// <summary>
+    /// returns the tv card used 
+    /// </summary>
+    ITVCard TvCard { get; }
   }
 }

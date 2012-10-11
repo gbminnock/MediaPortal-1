@@ -23,14 +23,18 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using DirectShowLib;
-using TvLibrary.ChannelLinkage;
-using TvLibrary.Channels;
-using TvLibrary.Epg;
-using TvLibrary.Implementations.Analog.QualityControl;
-using TvLibrary.Implementations.DVB;
-using TvLibrary.Interfaces;
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.QualityControl;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Analog;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvLibrary.Implementations.Analog
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
 {
   /// <summary>
   /// Class for handling supported capture cards, including the Hauppauge HD PVR and Colossus.
@@ -66,6 +70,7 @@ namespace TvLibrary.Implementations.Analog
     private IBaseFilter _filterEncoder;
     private IBaseFilter _filterTsWriter;
     private Configuration _configuration;
+    private AnalogChannel _previousChannel;
     private IQuality _qualityControl;
 
     /// <summary>
@@ -112,8 +117,14 @@ namespace TvLibrary.Implementations.Analog
         _encoderDeviceName = "Hauppauge Colossus TS Encoder " + deviceNumber;
       }
 
+      _mapSubChannels = new Dictionary<Int32, BaseSubChannel>();
       _supportsSubChannels = true;
-      _tunerType = CardType.Analog;
+      _minChannel = 0;
+      _maxChannel = 128;
+      _camType = CamType.Default;
+      _conditionalAccess = null;
+      _cardType = CardType.Analog;
+      _epgGrabbing = false;
       _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
       Configuration.writeConfiguration(_configuration);
     }
@@ -123,19 +134,194 @@ namespace TvLibrary.Implementations.Analog
     #region public methods
 
     /// <summary>
-    /// Check if the tuner can tune to a specific channel.
+    /// Method to check if card can tune to the channel specified
     /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
-    public override bool CanTune(IChannel channel)
+    /// <returns>true if card can tune to the channel otherwise false</returns>
+    public bool CanTune(IChannel channel)
     {
-      // My understanding is that the HD-PVR and Colossus are not able to capture audio-only streams. The
-      // driver doesn't seem to create PMT if a video stream is not detected.
-      if (channel is AnalogChannel && !channel.IsRadio)
+      if ((channel as AnalogChannel) == null || channel.MediaType == MediaTypeEnum.Radio)
       {
-        return true;
+        return false;
       }
       return true;
+    }
+
+    /// <summary>
+    /// Stops the current graph
+    /// </summary>
+    /// <returns></returns>
+    public override void PauseGraph()
+    {
+      FreeAllSubChannels();
+      FilterState state;
+      if (_graphBuilder == null)
+        return;
+      IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
+      if (mediaCtl == null)
+      {
+        throw new TvException("Can not convert graphBuilder to IMediaControl");
+      }
+      mediaCtl.GetState(10, out state);
+      Log.WriteFile("HDPVR: PauseGraph state:{0}", state);
+      _isScanning = false;
+      if (state != FilterState.Running)
+      {
+        _graphState = GraphState.Created;
+        return;
+      }
+      int hr = mediaCtl.Pause();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("HDPVR: PauseGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to pause graph");
+      }
+      Log.WriteFile("HDPVR: Graph paused");
+    }
+
+    /// <summary>
+    /// Stops the current graph
+    /// </summary>
+    /// <returns></returns>
+    public override void StopGraph()
+    {
+      FreeAllSubChannels();
+      FilterState state;
+      if (_graphBuilder == null)
+        return;
+      IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
+      if (mediaCtl == null)
+      {
+        throw new TvException("Can not convert graphBuilder to IMediaControl");
+      }
+      mediaCtl.GetState(10, out state);
+      Log.WriteFile("HDPVR: StopGraph state:{0}", state);
+      _isScanning = false;
+      if (state == FilterState.Stopped)
+      {
+        _graphState = GraphState.Created;
+        return;
+      }
+      int hr = mediaCtl.Stop();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("HDPVR: StopGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to stop graph");
+      }
+      Log.WriteFile("HDPVR: Graph stopped");
+    }
+
+    #endregion
+
+    #region Channel linkage handling
+
+    /// <summary>
+    /// Starts scanning for linkage info
+    /// </summary>
+    public void StartLinkageScanner(BaseChannelLinkageScanner callback) {}
+
+    /// <summary>
+    /// Stops/Resets the linkage scanner
+    /// </summary>
+    public void ResetLinkageScanner() {}
+
+    /// <summary>
+    /// Returns the channel linkages grabbed
+    /// </summary>
+    public List<PortalChannel> ChannelLinkages
+    {
+      get { return null; }
+    }
+
+    #endregion
+
+    #region epg & scanning
+
+    /// <summary>
+    /// Grabs the epg.
+    /// </summary>
+    /// <param name="callback">The callback which gets called when epg is received or canceled.</param>
+    public void GrabEpg(BaseEpgGrabber callback) {}
+
+    /// <summary>
+    /// Start grabbing the epg while timeshifting
+    /// </summary>
+    public void GrabEpg() {}
+
+    /// <summary>
+    /// Aborts grabbing the epg. This also triggers the OnEpgReceived callback.
+    /// </summary>
+    public void AbortGrabbing() {}
+
+    /// <summary>
+    /// returns a list of all epg data for each channel found.
+    /// </summary>
+    /// <value>The epg.</value>
+    public List<EpgChannel> Epg
+    {
+      get { return null; }
+    }
+
+    /// <summary>
+    /// returns the ITVScanning interface used for scanning channels
+    /// </summary>
+    public ITVScanning ScanningInterface
+    {
+      get { return null; }
+    }
+
+    #endregion
+
+    #region tuning & recording
+
+    /// <summary>
+    /// Scans the specified channel.
+    /// </summary>
+    /// <param name="subChannelId">The sub channel id.</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
+    public ITvSubChannel Scan(int subChannelId, IChannel channel)
+    {
+      return Tune(subChannelId, channel);
+    }
+
+    /// <summary>
+    /// Tunes the specified channel.
+    /// </summary>
+    /// <param name="subChannelId">The sub channel id.</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
+    public ITvSubChannel Tune(int subChannelId, IChannel channel)
+    {
+      Log.WriteFile("HDPVR: Tune:{0}, {1}", subChannelId, channel);
+      if (_graphState == GraphState.Idle)
+      {
+        BuildGraph();
+      }
+      BaseSubChannel subChannel;
+      if (_mapSubChannels.ContainsKey(subChannelId))
+      {
+        subChannel = _mapSubChannels[subChannelId];
+      }
+      else
+      {
+        subChannelId = GetNewSubChannel(channel);
+        subChannel = _mapSubChannels[subChannelId];
+      }
+      subChannel.CurrentChannel = channel;
+      subChannel.OnBeforeTune();
+      PerformTuning(channel);
+      subChannel.OnAfterTune();
+      try
+      {
+        RunGraph(subChannelId);
+      }
+      catch (Exception)
+      {
+        FreeSubChannel(subChannelId);
+        throw;
+      }
+
+      return subChannel;
     }
 
     #endregion
@@ -143,19 +329,17 @@ namespace TvLibrary.Implementations.Analog
     #region subchannel management
 
     /// <summary>
-    /// Allocate a new subchannel instance.
+    /// Allocates a new instance of HDPVRChannel which handles the new subchannel
     /// </summary>
-    /// <param name="channel">The service or channel to associate with the subchannel.</param>
-    /// <returns>a handle for the subchannel</returns>
-    protected override int CreateNewSubChannel(IChannel channel)
+    /// <returns>handle for to the subchannel</returns>
+    private Int32 GetNewSubChannel(IChannel channel)
     {
       int id = _subChannelId++;
-      Log.Log.Info("TvCardHdPvr: new subchannel, ID = {0}, subchannel count = {1}", id, _mapSubChannels.Count);
-      HDPVRChannel subChannel = new HDPVRChannel(id, this, _filterTsWriter);
+      Log.Info("HDPVR: GetNewSubChannel:{0} #{1}", _mapSubChannels.Count, id);
+      HDPVRChannel subChannel = new HDPVRChannel(this, _deviceType, id, _filterTsWriter, _graphBuilder);
       subChannel.Parameters = Parameters;
       subChannel.CurrentChannel = channel;
       _mapSubChannels[id] = subChannel;
-      FireNewSubChannelEvent(id);
       return id;
     }
 
@@ -166,19 +350,20 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Get/Set the quality
     /// </summary>
-    public override IQuality Quality
+    public IQuality Quality
     {
       get { return _qualityControl; }
+      set { }
     }
 
     /// <summary>
     /// Property which returns true if card supports quality control
     /// </summary>
-    public override bool SupportsQualityControl
+    public bool SupportsQualityControl
     {
       get
       {
-        if (!_isDeviceInitialised)
+        if (_graphState == GraphState.Idle)
         {
           BuildGraph();
         }
@@ -189,7 +374,7 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Reloads the quality control configuration
     /// </summary>
-    public override void ReloadCardConfiguration()
+    public void ReloadCardConfiguration()
     {
       if (_qualityControl != null)
       {
@@ -204,22 +389,51 @@ namespace TvLibrary.Implementations.Analog
     #region properties
 
     /// <summary>
-    /// Update the tuner signal status statistics.
+    /// A derrived class should update the signal informations of the tv cards
     /// </summary>
-    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
-    protected override void UpdateSignalStatus(bool force)
+    protected override void UpdateSignalQuality(bool force)
     {
-      if (!_isDeviceInitialised)
+      UpdateSignalQuality();
+    }
+
+    /// <summary>
+    /// When the tuner is locked onto a signal this property will return true
+    /// otherwise false
+    /// </summary>
+    protected override void UpdateSignalQuality()
+    {
+      TimeSpan ts = DateTime.Now - _lastSignalUpdate;
+      if (ts.TotalMilliseconds < 5000 || _graphState == GraphState.Idle)
       {
         _tunerLocked = false;
-        _signalLevel = 0;
-        _signalQuality = 0;
       }
       else
       {
         _tunerLocked = true;
+      }
+      if (_tunerLocked)
+      {
         _signalLevel = 100;
         _signalQuality = 100;
+      }
+      else
+      {
+        _signalLevel = 0;
+        _signalQuality = 0;
+      }
+    }
+
+    /// <summary>
+    /// Gets or sets the unique id of this card
+    /// </summary>
+    public override int CardId
+    {
+      get { return _cardId; }
+      set
+      {
+        _cardId = value;
+        _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
+        Configuration.writeConfiguration(_configuration);
       }
     }
 
@@ -230,12 +444,16 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Disposes this instance.
     /// </summary>
-    public override void Dispose()
+    public virtual void Dispose()
     {
       if (_graphBuilder == null)
         return;
-      Log.Log.WriteFile("HDPVR:  Dispose()");
-
+      Log.WriteFile("HDPVR:  Dispose()");
+      if (_graphState == GraphState.TimeShifting || _graphState == GraphState.Recording)
+      {
+        // Stop the graph first. To ensure that the timeshift files are no longer blocked
+        StopGraph();
+      }
       FreeAllSubChannels();
       // Decompose the graph
       IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
@@ -245,11 +463,8 @@ namespace TvLibrary.Implementations.Analog
       }
       // Decompose the graph
       mediaCtl.Stop();
-
-      base.Dispose();
-
       FilterGraphTools.RemoveAllFilters(_graphBuilder);
-      Log.Log.WriteFile("HDPVR:  All filters removed");
+      Log.WriteFile("HDPVR:  All filters removed");
       if (_filterCrossBar != null)
       {
         while (Release.ComObject(_filterCrossBar) > 0) {}
@@ -274,6 +489,7 @@ namespace TvLibrary.Implementations.Analog
       Release.ComObject("Graphbuilder", _graphBuilder);
       _graphBuilder = null;
       DevicesInUse.Instance.Remove(_tunerDevice);
+      _graphState = GraphState.Idle;
       if (_crossBarDevice != null)
       {
         DevicesInUse.Instance.Remove(_crossBarDevice);
@@ -289,9 +505,15 @@ namespace TvLibrary.Implementations.Analog
         DevicesInUse.Instance.Remove(_encoderDevice);
         _encoderDevice = null;
       }
-      _isDeviceInitialised = false;
-      Log.Log.WriteFile("HDPVR:  dispose completed");
+      _graphState = GraphState.Idle;
+      Log.WriteFile("HDPVR:  dispose completed");
     }
+
+    public void CancelTune(int subChannel)
+    {
+    }
+
+    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
 
     #endregion
 
@@ -304,18 +526,19 @@ namespace TvLibrary.Implementations.Analog
     {
       if (_cardId == 0)
       {
+        GetPreloadBitAndCardId();
         _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
         Configuration.writeConfiguration(_configuration);
       }
 
       _lastSignalUpdate = DateTime.MinValue;
       _tunerLocked = false;
-      Log.Log.WriteFile("HDPVR: build graph");
+      Log.WriteFile("HDPVR: build graph");
       try
       {
-        if (_isDeviceInitialised)
+        if (_graphState != GraphState.Idle)
         {
-          Log.Log.WriteFile("HDPVR: graph already built!");
+          Log.WriteFile("HDPVR: graph already built!");
           throw new TvException("Graph already built");
         }
         _graphBuilder = (IFilterGraph2)new FilterGraph();
@@ -330,10 +553,10 @@ namespace TvLibrary.Implementations.Analog
                                                                      null, null);
         if (_qualityControl == null)
         {
-          Log.Log.WriteFile("HDPVR: No quality control support found");
+          Log.WriteFile("HDPVR: No quality control support found");
         }
 
-        _isDeviceInitialised = true;
+        _graphState = GraphState.Created;
         _configuration.Graph.Crossbar.Name = _crossBarDevice.Name;
         _configuration.Graph.Crossbar.VideoPinMap = _videoPinMap;
         _configuration.Graph.Crossbar.AudioPinMap = _audioPinMap;
@@ -348,16 +571,16 @@ namespace TvLibrary.Implementations.Analog
       }
       catch (Exception ex)
       {
-        Log.Log.Write(ex);
+        Log.Write(ex);
         Dispose();
-        _isDeviceInitialised = false;
+        _graphState = GraphState.Idle;
         throw;
       }
     }
 
     private void AddCrossBarFilter()
     {
-      Log.Log.WriteFile("HDPVR: Add Crossbar Filter");
+      Log.WriteFile("HDPVR: Add Crossbar Filter");
       //get list of all crossbar devices installed on this system
       _crossBarDevice = _tunerDevice;
       IBaseFilter tmp;
@@ -369,7 +592,7 @@ namespace TvLibrary.Implementations.Analog
       }
       catch (Exception)
       {
-        Log.Log.WriteFile("HDPVR: cannot add filter to graph");
+        Log.WriteFile("HDPVR: cannot add filter to graph");
         throw new TvException("Unable to add crossbar to graph");
       }
       if (hr == 0)
@@ -378,14 +601,14 @@ namespace TvLibrary.Implementations.Analog
         CheckCapabilities();
         return;
       }
-      Log.Log.WriteFile("HDPVR: cannot add filter to graph");
+      Log.WriteFile("HDPVR: cannot add filter to graph");
       throw new TvException("Unable to add crossbar to graph");
     }
 
     private void AddCaptureFilter()
     {
       DsDevice[] devices;
-      Log.Log.WriteFile("HDPVR: Add Capture Filter");
+      Log.WriteFile("HDPVR: Add Capture Filter");
       //get a list of all video capture devices
       try
       {
@@ -394,12 +617,12 @@ namespace TvLibrary.Implementations.Analog
       }
       catch (Exception)
       {
-        Log.Log.WriteFile("HDPVR: AddTvCaptureFilter no tvcapture devices found");
+        Log.WriteFile("HDPVR: AddTvCaptureFilter no tvcapture devices found");
         return;
       }
       if (devices.Length == 0)
       {
-        Log.Log.WriteFile("HDPVR: AddTvCaptureFilter no tvcapture devices found");
+        Log.WriteFile("HDPVR: AddTvCaptureFilter no tvcapture devices found");
         return;
       }
       //try each video capture filter
@@ -409,7 +632,7 @@ namespace TvLibrary.Implementations.Analog
         {
           continue;
         }
-        Log.Log.WriteFile("HDPVR: AddTvCaptureFilter try:{0} {1}", devices[i].Name, i);
+        Log.WriteFile("HDPVR: AddTvCaptureFilter try:{0} {1}", devices[i].Name, i);
         // if video capture filter is in use, then we can skip it
         if (DevicesInUse.Instance.IsUsed(devices[i]))
         {
@@ -424,7 +647,7 @@ namespace TvLibrary.Implementations.Analog
         }
         catch (Exception)
         {
-          Log.Log.WriteFile("HDPVR: cannot add filter to graph");
+          Log.WriteFile("HDPVR: cannot add filter to graph");
           continue;
         }
         if (hr != 0)
@@ -447,18 +670,18 @@ namespace TvLibrary.Implementations.Analog
           _filterCapture = tmp;
           _captureDevice = devices[i];
           DevicesInUse.Instance.Add(_captureDevice);
-          Log.Log.WriteFile("HDPVR: AddTvCaptureFilter connected to crossbar successfully");
+          Log.WriteFile("HDPVR: AddTvCaptureFilter connected to crossbar successfully");
           break;
         }
         // cannot connect crossbar->video capture filter, remove filter from graph
         // cand continue with the next vieo capture filter
-        Log.Log.WriteFile("HDPVR: AddTvCaptureFilter failed to connect to crossbar");
+        Log.WriteFile("HDPVR: AddTvCaptureFilter failed to connect to crossbar");
         _graphBuilder.RemoveFilter(tmp);
         Release.ComObject("capture filter", tmp);
       }
       if (_filterCapture == null)
       {
-        Log.Log.Error("HDPVR: unable to add TvCaptureFilter to graph");
+        Log.Error("HDPVR: unable to add TvCaptureFilter to graph");
         //throw new TvException("Unable to add TvCaptureFilter to graph");
       }
     }
@@ -466,7 +689,7 @@ namespace TvLibrary.Implementations.Analog
     private void AddEncoderFilter()
     {
       DsDevice[] devices;
-      Log.Log.WriteFile("HDPVR: AddEncoderFilter");
+      Log.WriteFile("HDPVR: AddEncoderFilter");
       // first get all encoder filters available on this system
       try
       {
@@ -475,24 +698,24 @@ namespace TvLibrary.Implementations.Analog
       }
       catch (Exception)
       {
-        Log.Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found (Exception)");
+        Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found (Exception)");
         return;
       }
 
       if (devices == null)
       {
-        Log.Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found (devices == null)");
+        Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found (devices == null)");
         return;
       }
 
       if (devices.Length == 0)
       {
-        Log.Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found");
+        Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder devices found");
         return;
       }
 
       //for each encoder
-      Log.Log.WriteFile("HDPVR: AddTvEncoderFilter found:{0} encoders", devices.Length);
+      Log.WriteFile("HDPVR: AddTvEncoderFilter found:{0} encoders", devices.Length);
       for (int i = 0; i < devices.Length; i++)
       {
         if (devices[i].Name != _encoderDeviceName)
@@ -503,11 +726,11 @@ namespace TvLibrary.Implementations.Analog
         //if encoder is in use, we can skip it
         if (DevicesInUse.Instance.IsUsed(devices[i]))
         {
-          Log.Log.WriteFile("HDPVR:  skip :{0} (inuse)", devices[i].Name);
+          Log.WriteFile("HDPVR:  skip :{0} (inuse)", devices[i].Name);
           continue;
         }
 
-        Log.Log.WriteFile("HDPVR:  try encoder:{0} {1}", devices[i].Name, i);
+        Log.WriteFile("HDPVR:  try encoder:{0} {1}", devices[i].Name, i);
         IBaseFilter tmp;
         int hr;
         try
@@ -517,7 +740,7 @@ namespace TvLibrary.Implementations.Analog
         }
         catch (Exception)
         {
-          Log.Log.WriteFile("HDPVR: cannot add filter {0} to graph", devices[i].Name);
+          Log.WriteFile("HDPVR: cannot add filter {0} to graph", devices[i].Name);
           continue;
         }
         if (hr != 0)
@@ -543,41 +766,41 @@ namespace TvLibrary.Implementations.Analog
           _filterEncoder = tmp;
           _encoderDevice = devices[i];
           DevicesInUse.Instance.Add(_encoderDevice);
-          Log.Log.WriteFile("HDPVR: AddTvEncoderFilter connected to catpure successfully");
+          Log.WriteFile("HDPVR: AddTvEncoderFilter connected to catpure successfully");
           //and we're done
           return;
         }
         // cannot connect crossbar->video capture filter, remove filter from graph
         // cand continue with the next vieo capture filter
-        Log.Log.WriteFile("HDPVR: AddTvEncoderFilter failed to connect to capture");
+        Log.WriteFile("HDPVR: AddTvEncoderFilter failed to connect to capture");
         _graphBuilder.RemoveFilter(tmp);
         Release.ComObject("capture filter", tmp);
       }
-      Log.Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder found");
+      Log.WriteFile("HDPVR: AddTvEncoderFilter no encoder found");
     }
 
     private void AddTsWriterFilterToGraph()
     {
       if (_filterTsWriter == null)
       {
-        Log.Log.WriteFile("HDPVR: Add Mediaportal TsWriter filter");
+        Log.WriteFile("HDPVR: Add Mediaportal TsWriter filter");
         _filterTsWriter = (IBaseFilter)new MpTsAnalyzer();
         int hr = _graphBuilder.AddFilter(_filterTsWriter, "MediaPortal Ts Analyzer");
         if (hr != 0)
         {
-          Log.Log.Error("HDPVR:  Add main Ts Analyzer returns:0x{0:X}", hr);
+          Log.Error("HDPVR:  Add main Ts Analyzer returns:0x{0:X}", hr);
           throw new TvException("Unable to add Ts Analyzer filter");
         }
         IPin pinOut = DsFindPin.ByDirection(_filterEncoder, PinDirection.Output, 0);
         if (pinOut == null)
         {
-          Log.Log.Error("HDPVR:  Unable to find output pin on the encoder filter");
+          Log.Error("HDPVR:  Unable to find output pin on the encoder filter");
           throw new TvException("unable to find output pin on the encoder filter");
         }
         IPin pinIn = DsFindPin.ByDirection(_filterTsWriter, PinDirection.Input, 0);
         if (pinIn == null)
         {
-          Log.Log.Error("HDPVR:  Unable to find the input pin on ts analyzer filter");
+          Log.Error("HDPVR:  Unable to find the input pin on ts analyzer filter");
           throw new TvException("Unable to find the input pin on ts analyzer filter");
         }
         //Log.Log.Info("HDPVR: Render [Encoder]->[TsWriter]");
@@ -586,10 +809,56 @@ namespace TvLibrary.Implementations.Analog
         Release.ComObject("pinEncoderOut", pinOut);
         if (hr != 0)
         {
-          Log.Log.Error("HDPVR:  Unable to connect encoder to ts analyzer filter :0x{0:X}", hr);
+          Log.Error("HDPVR:  Unable to connect encoder to ts analyzer filter :0x{0:X}", hr);
           throw new TvException("unable to connect encoder to ts analyzer filter");
         }
-        Log.Log.WriteFile("HDPVR: AddTsWriterFilterToGraph connected to encoder successfully");
+        Log.WriteFile("HDPVR: AddTsWriterFilterToGraph connected to encoder successfully");
+      }
+    }
+
+    /// <summary>
+    /// Method which starts the graph
+    /// </summary>
+    public override void RunGraph(int subChannel)
+    {
+      bool graphRunning = GraphRunning();
+
+      if (_mapSubChannels.ContainsKey(subChannel))
+      {
+        _mapSubChannels[subChannel].AfterTuneEvent -= new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].AfterTuneEvent += new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].OnGraphStart();
+      }
+
+      if (graphRunning)
+      {
+        Log.Write("HDPVR: Graph already running");
+        return;
+      }
+
+      int hr = 0;
+      IMediaControl mediaCtrl = _graphBuilder as IMediaControl;
+      if (mediaCtrl == null)
+      {
+        Log.WriteFile("HDPVR: RunGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to start graph");
+      }
+      Log.WriteFile("HDPVR: RunGraph");
+      hr = mediaCtrl.Run();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("HDPVR: RunGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to start graph");
+      }
+      if (GraphRunning())
+      {
+        Log.Write("HDPVR: Graph running");
+      }
+      if (_mapSubChannels.ContainsKey(subChannel))
+      {
+        _mapSubChannels[subChannel].AfterTuneEvent -= new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].AfterTuneEvent += new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].OnGraphStarted();
       }
     }
 
@@ -597,20 +866,11 @@ namespace TvLibrary.Implementations.Analog
 
     #region private helper
 
-    /// <summary>
-    /// Actually tune to a channel.
-    /// </summary>
-    /// <param name="channel">The channel to tune to.</param>
-    protected override void PerformTuning(IChannel channel)
+    private void PerformTuning(IChannel channel)
     {
-      Log.Log.WriteFile("HDPVR: Tune");
+      Log.WriteFile("HDPVR: Tune");
       AnalogChannel analogChannel = channel as AnalogChannel;
       if (analogChannel == null)
-      {
-        throw new NullReferenceException();
-      }
-      AnalogChannel previousChannel = _previousChannel as AnalogChannel;
-      if (_previousChannel != null && previousChannel == null)
       {
         throw new NullReferenceException();
       }
@@ -618,37 +878,39 @@ namespace TvLibrary.Implementations.Analog
       // Set up the crossbar.
       IAMCrossbar crossBarFilter = _filterCrossBar as IAMCrossbar;
 
-      if (_previousChannel == null || previousChannel.VideoSource != analogChannel.VideoSource)
+      // Video
+      if ((_previousChannel == null || _previousChannel.VideoSource != analogChannel.VideoSource) &&
+        _videoPinMap.ContainsKey(analogChannel.VideoSource))
       {
-        // Video
-        if (_videoPinMap.ContainsKey(analogChannel.VideoSource))
-        {
-          Log.Log.WriteFile("HDPVR:   video input -> {0}", analogChannel.VideoSource);
-          crossBarFilter.Route(_videoOutPinIndex, _videoPinMap[analogChannel.VideoSource]);
-        }
-
-        // Automatic Audio
-        if (analogChannel.AudioSource == AnalogChannel.AudioInputType.Automatic)
-        {
-          if (_videoPinRelatedAudioMap.ContainsKey(analogChannel.VideoSource))
-          {
-            Log.Log.WriteFile("HDPVR:   audio input -> (auto)");
-            crossBarFilter.Route(_audioOutPinIndex, _videoPinRelatedAudioMap[analogChannel.VideoSource]);
-          }
-        }
+        Log.WriteFile("HDPVR:   video input -> {0}", analogChannel.VideoSource);
+        crossBarFilter.Route(_videoOutPinIndex, _videoPinMap[analogChannel.VideoSource]);
       }
 
       // Audio
-      if ((_previousChannel == null || previousChannel.AudioSource != analogChannel.AudioSource) &&
-        analogChannel.AudioSource != AnalogChannel.AudioInputType.Automatic &&
+      if (analogChannel.AudioSource == AnalogChannel.AudioInputType.Automatic)
+      {
+        if (_videoPinRelatedAudioMap.ContainsKey(analogChannel.VideoSource))
+        {
+          Log.WriteFile("HDPVR:   audio input -> (auto)");
+          crossBarFilter.Route(_audioOutPinIndex, _videoPinRelatedAudioMap[analogChannel.VideoSource]);
+        }
+      }
+      else if ((_previousChannel == null || _previousChannel.AudioSource != analogChannel.AudioSource) &&
         _audioPinMap.ContainsKey(analogChannel.AudioSource))
       {
-        Log.Log.WriteFile("HDPVR:   audio input -> {0}", analogChannel.AudioSource);
+        Log.WriteFile("HDPVR:   audio input -> {0}", analogChannel.AudioSource);
         crossBarFilter.Route(_audioOutPinIndex, _audioPinMap[analogChannel.AudioSource]);
       }
 
+      _lastSignalUpdate = DateTime.MinValue;
+      _tunerLocked = false;
       _previousChannel = analogChannel;
-      Log.Log.WriteFile("HDPVR: Tuned to channel {0}", channel.Name);
+      Log.WriteFile("HDPVR: Tuned to channel {0}", channel.Name);
+      if (_graphState == GraphState.Idle)
+      {
+        _graphState = GraphState.Created;
+      }
+      _lastSignalUpdate = DateTime.MinValue;
     }
 
     /// <summary>
@@ -692,7 +954,7 @@ namespace TvLibrary.Implementations.Analog
         for (int i = 0; i < inputs; ++i)
         {
           crossBarFilter.get_CrossbarPinInfo(true, i, out relatedPinIndex, out connectorType);
-          Log.Log.Write(" crossbar pin:{0} type:{1}", i, connectorType);
+          Log.Write(" crossbar pin:{0} type:{1}", i, connectorType);
           switch (connectorType)
           {
             case PhysicalConnectorType.Audio_Tuner:
@@ -841,6 +1103,21 @@ namespace TvLibrary.Implementations.Analog
         }
       }
     }
+
+    #endregion
+
+    #region abstract implemented Methods
+
+    /// <summary>
+    /// A derrived class should activate / deactivate the scanning
+    /// </summary>
+    protected override void OnScanning() {}
+
+    /// <summary>
+    /// A derrived class should activate / deactivate the epg grabber
+    /// </summary>
+    /// <param name="value">Mode</param>
+    protected override void UpdateEpgGrabber(bool value) {}
 
     #endregion
   }

@@ -19,21 +19,23 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using DirectShowLib;
-using TvLibrary.Channels;
-using TvLibrary.Implementations.DVB;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Analyzer;
+using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Graphs;
+using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Structures;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvLibrary.Implementations.Analog
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR
 {
   /// <summary>
   /// Implementation of <see cref="T:TvLibrary.Interfaces.ITVCard"/> which handles analog tv cards
   /// </summary>
-  public class HDPVRChannel : TvDvbChannel
+  public class HDPVRChannel : TvDvbChannel, ITvSubChannel, IVideoAudioObserver, IPMTCallback
   {
     #region constants
 
@@ -41,50 +43,77 @@ namespace TvLibrary.Implementations.Analog
 
     // The Hauppauge HD PVR and Colossus deliver a DVB stream with a single service on a fixed
     // service ID with a fixed PMT PID.
-    private readonly int ServiceId = 1;
-    private readonly int PmtPid = 0x100;
+    private readonly String _deviceType;
+    private readonly int SERVICE_ID = 1;
+    private readonly int PMT_PID = 0x100;
 
     #endregion
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HDPVRChannel"/> class.
     /// </summary>
-    public HDPVRChannel(int subchannelId, TvCardHDPVR card, IBaseFilter filterTsWriter)
-      : base(subchannelId, card, filterTsWriter, null)
+    public HDPVRChannel(TvCardHDPVR card, String deviceType, Int32 subchannelId, IBaseFilter filterTsWriter, IFilterGraph2 graphBuilder)
     {
+      _eventPMT = new ManualResetEvent(false);
+      _graphState = GraphState.Created;
+      _graphBuilder = graphBuilder;
+      _channelInfo = new ChannelInfo();
+      _pmtPid = -1;
+      _subChannelIndex = -1;
+
       // Keep a reference to the card for quality control.
       _card = card;
+      _deviceType = deviceType;
+
+      _tsFilterInterface = (ITsFilter)filterTsWriter;
+      _tsFilterInterface.AddChannel(ref _subChannelIndex);
+      _subChannelId = subchannelId;
+      _timeshiftFileName = "";
+      _recordingFileName = "";
+      _pmtData = null;
+      _pmtLength = 0;
 
       _grabTeletext = false;
+      _mdplugs = null;
+    }
+
+    /// <summary>
+    /// Destructor
+    /// </summary>
+    ~HDPVRChannel()
+    {
+      if (_eventPMT != null)
+      {
+        _eventPMT.Close();
+      }
     }
 
     #region tuning and graph method overrides
 
     /// <summary>
-    /// Should be called when the graph has been started.
-    /// Sets up the PMT grabber to grab the PMT of the channel
-    /// </summary>
-    public override void OnGraphRunning()
-    {
-      Log.Log.Debug("HDPVRChannel: subchannel {0} OnGraphRunning()", _subChannelId);
-
-      if (!WaitForPmt(ServiceId, PmtPid))
-      {
-        throw new TvExceptionNoPMT("HDPVRChannel: PMT not received");
-      }
-    }
-
-    /// <summary>
     /// Start timeshifting
     /// </summary>
     /// <param name="fileName">timeshifting filename</param>
-    protected override void OnStartTimeShifting(string fileName)
+    protected override bool OnStartTimeShifting(string fileName)
     {
       if (_card.SupportsQualityControl && !IsRecording)
       {
         _card.Quality.StartPlayback();
       }
-      base.OnStartTimeShifting(fileName);
+      return base.OnStartTimeShifting(fileName);
+    }
+
+    /// <summary>
+    /// Stop timeshifting
+    /// </summary>
+    /// <returns></returns>
+    protected override void OnStopTimeShifting()
+    {
+      base.OnStopTimeShifting();
+      if (_card.SupportsQualityControl && IsRecording)
+      {
+        _card.Quality.StartRecord();
+      }
     }
 
     /// <summary>
@@ -110,6 +139,113 @@ namespace TvLibrary.Implementations.Analog
       if (_card.SupportsQualityControl && IsTimeShifting)
       {
         _card.Quality.StartPlayback();
+      }
+    }
+
+    /// <summary>
+    /// Wait for PMT to be found in the transport stream.
+    /// </summary>
+    /// <returns><c>true</c> if PMT was found, otherwise <c>false</c></returns>
+    protected override bool WaitForPMT()
+    {
+      int pid = PMT_PID;
+      bool pmtFound = false;
+      TimeSpan waitLength = TimeSpan.MinValue;
+      while (!pmtFound)
+      {
+        SetupPmtGrabber(pid, SERVICE_ID);
+        _pmtRequested = true;
+        DateTime dtStartWait = DateTime.Now;
+        pmtFound = _eventPMT.WaitOne(_parameters.TimeOutPMT * 1000, true);
+        waitLength = DateTime.Now - dtStartWait;
+        if (!pmtFound)
+        {
+          Log.Debug("HDPVR: timed out waiting for PMT after {0} seconds", waitLength.TotalSeconds);
+          if (pid == 0)
+          {
+            Log.Debug("Giving up waiting for PMT. You might need to increase the PMT timeout value.");
+            return false;
+          }
+          else
+          {
+            Log.Debug("Setting pid to 0 to search for new PMT.");
+            pid = 0;
+          }
+        }
+      }
+
+      Log.Debug("HDPVR: found PMT after {0} seconds", waitLength.TotalSeconds);
+      return HandlePmt();
+    }
+
+    /// <summary>
+    /// Stub override to allow inherritance from TvDvbChannel.
+    /// </summary>
+    protected override bool SendPmtToCam(out bool updatePids, out int waitInterval)
+    {
+      updatePids = false;
+      waitInterval = 0;
+      return true;
+    }
+
+    #endregion
+
+    #region IPMTCallback Members
+
+    /// <summary>
+    /// Called when the PMT has been received.
+    /// </summary>
+    /// <returns></returns>
+    public override int OnPMTReceived(int pmtPid)
+    {
+      Log.WriteFile("HDPVR: OnPMTReceived() subch:{0} pid 0x{1:X}", _subChannelId, pmtPid);
+      _pmtPid = pmtPid;
+      if (_eventPMT != null)
+      {
+        _eventPMT.Set();
+      }
+      if (!_pmtRequested)
+      {
+        HandlePmt();
+      }
+      _pmtRequested = false;
+      return 0;
+    }
+
+    private bool HandlePmt()
+    {
+      IntPtr pmtMem = Marshal.AllocCoTaskMem(4096); // max. size for pmt
+      try
+      {
+        _pmtLength = _tsFilterInterface.PmtGetPMTData(_subChannelIndex, pmtMem);
+        if (_pmtLength < 6)
+        {
+          return false;
+        }
+
+        // Check the program number.
+        _pmtData = new byte[_pmtLength];
+        Marshal.Copy(pmtMem, _pmtData, 0, _pmtLength);
+        int version = ((_pmtData[5] >> 1) & 0x1F);
+        int pmtProgramNumber = (_pmtData[3] << 8) + _pmtData[4];
+        Log.Info("HDPVR: PMT sid=0x{0:X} pid=0x{1:X} version=0x{2:X}", pmtProgramNumber, _pmtPid, version);
+        if (pmtProgramNumber != SERVICE_ID)
+        {
+          throw new TvException("HDPVRChannel: PMT program number doesn't match expected service ID");
+        }
+
+        // Get the program PIDs.
+        _pmtVersion = version;
+        _channelInfo = new ChannelInfo();
+        _channelInfo.DecodePmt(_pmtData);
+        _channelInfo.serviceID = pmtProgramNumber;
+        _channelInfo.network_pmt_PID = _pmtPid;
+        SetMpegPidMapping(_channelInfo);
+        return true;
+      }
+      finally
+      {
+        Marshal.FreeCoTaskMem(pmtMem);
       }
     }
 

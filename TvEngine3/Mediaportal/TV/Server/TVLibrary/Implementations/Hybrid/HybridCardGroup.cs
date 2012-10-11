@@ -19,12 +19,13 @@
 #endregion
 
 using System.Collections.Generic;
-using TvLibrary.Interfaces;
-using TvLibrary.Epg;
-using TvLibrary.ChannelLinkage;
-using TvLibrary.Implementations.Analog;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 
-namespace TvLibrary.Implementations.Hybrid
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.Hybrid
 {
   /// <summary>
   /// Hybrid card group wrapper
@@ -89,14 +90,19 @@ namespace TvLibrary.Implementations.Hybrid
     #region ITVCard Members
 
     /// <summary>
-    /// Stop the device. The actual result of this function depends on device configuration:
-    /// - graph stop
-    /// - graph pause
-    /// TODO graph destroy
+    /// Stops the current graph
     /// </summary>
-    public void Stop()
+    public void StopGraph()
     {
-      _cards[_currentCardIndex].Stop();
+      _cards[_currentCardIndex].StopGraph();
+    }
+
+    /// <summary>
+    /// Pauses the current graph
+    /// </summary>
+    public void PauseGraph()
+    {
+      _cards[_currentCardIndex].PauseGraph();
     }
 
     /// <summary>
@@ -178,11 +184,11 @@ namespace TvLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Tune to a specific channel.
+    /// Tunes the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being tuned.</param>
-    /// <param name="channel">The channel to tune to.</param>
-    /// <returns>the subchannel associated with the tuned channel</returns>
+    /// <param name="subChannelId">The subchannel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
     public ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
       for (int i = 0; i < _cards.Count; ++i)
@@ -204,11 +210,11 @@ namespace TvLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Scan a specific channel.
+    /// Scans the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being scanned.</param>
-    /// <param name="channel">The channel to scan.</param>
-    /// <returns>the subchannel associated with the scanned channel</returns>
+    /// <param name="subChannelId">The subchannel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
     public ITvSubChannel Scan(int subChannelId, IChannel channel)
     {
       for (int i = 0; i < _cards.Count; ++i)
@@ -288,6 +294,16 @@ namespace TvLibrary.Implementations.Hybrid
     public ITvSubChannel GetSubChannel(int id)
     {
       return _cards[_currentCardIndex].GetSubChannel(id);
+    }
+
+    /// <summary>
+    /// Gets the first sub channel.
+    /// </summary>
+    /// <param name="id">The id.</param>
+    /// <returns></returns>
+    public ITvSubChannel GetFirstSubChannel()
+    {
+      return _cards[_currentCardIndex].GetFirstSubChannel();
     }
 
     /// <summary>

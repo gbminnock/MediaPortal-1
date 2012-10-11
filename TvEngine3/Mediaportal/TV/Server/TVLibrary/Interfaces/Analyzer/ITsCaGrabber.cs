@@ -21,53 +21,53 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace TvLibrary.Interfaces.Analyzer
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer
 {
-  /// <summary>
-  /// TsWriter CAT grabber callback interface.
-  /// </summary>
+  ///<summary>
+  /// The tswriter ca callback
+  ///</summary>
   [ComVisible(true), ComImport,
-    Guid("38536ab6-7a41-404f-917F-c47dd8b639c7"),
-    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  public interface ICaCallBack
+   Guid("38536AB6-7A41-404f-917F-C47DD8B639C7"),
+   InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  public interface ICACallback
   {
     /// <summary>
-    /// Called by an ITsCaGrabber instance when it receives a new CAT section.
+    /// Called when the Ca has been received.
     /// </summary>
-    /// <returns>an HRESULT indicating whether the CAT section was successfully handled</returns>
+    /// <returns></returns>
     [PreserveSig]
     int OnCaReceived();
-  }
+  } ;
 
   /// <summary>
-  /// TsWriter CAT grabber interface.
+  /// interface to the pmt grabber com object
   /// </summary>
   [ComVisible(true), ComImport,
-    Guid("f9aa3910-7818-452a-94d1-72e039df50ef"),
-    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+   Guid("F9AA3910-7818-452a-94D1-72E039DF50EF"),
+   InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   public interface ITsCaGrabber
   {
     /// <summary>
-    /// Reset the grabber, causing it to forget about previously seen CAT sections.
+    /// Sets the call back to be called when CA is received.
     /// </summary>
-    /// <returns>an HRESULT indicating whether the grabber was successfully reset</returns>
+    /// <param name="callback">The callback.</param>
+    /// <returns></returns>
     [PreserveSig]
-    int Reset();
+    int SetCallBack(ICACallback callback);
 
     /// <summary>
-    /// Set the delegate for the grabber to notify when a new CAT section is received.
+    /// Gets the CA data.
     /// </summary>
-    /// <param name="callBack">The delegate callback interface.</param>
-    /// <returns>an HRESULT indicating whether the delegate was successfully registered</returns>
-    [PreserveSig]
-    int SetCallBack(ICaCallBack callBack);
-
-    /// <summary>
-    /// Used by the delegate to retrieve a CAT section from the grabber.
-    /// </summary>
-    /// <param name="caData">A pointer to a buffer that will be populated with the most recently received CAT section.</param>
-    /// <returns>the length of the CAT section in bytes</returns>
+    /// <param name="caData">The caData.</param>
+    /// <returns></returns>
     [PreserveSig]
     int GetCaData(IntPtr caData);
+
+    /// <summary>
+    /// Resets the ca grabber.
+    /// </summary>
+    /// <returns></returns>
+    [PreserveSig]
+    int Reset();
   }
 }

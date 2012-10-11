@@ -21,23 +21,31 @@
 using System;
 using System.Collections.Generic;
 using DirectShowLib;
-using TvLibrary.Interfaces;
-using TvLibrary.Epg;
-using TvLibrary.Implementations.DVB;
-using TvLibrary.ChannelLinkage;
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.AudioStream;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvLibrary.Implementations.RadioWebStream
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.RadioWebStream
 {
   /// <summary>
   /// Dummy card for radio web streams
   /// Timeshifting is not supported, the stream is played back on the client
   /// Recording is supported
   /// </summary>
-  public class RadioWebStreamCard : TvCardBase
+  public class RadioWebStreamCard : ITVCard
   {
     #region variables
 
+    private string _name;
     private DateTime _dateRecordingStarted = DateTime.MinValue;
+    private object m_context;
+    private ScanParameters _parameters;
+    private bool _cardPresent = true;
 
     #endregion
 
@@ -47,16 +55,140 @@ namespace TvLibrary.Implementations.RadioWebStream
     /// Initializes a new instance of the <see cref="RadioWebStreamCard"/> class.
     /// </summary>
     public RadioWebStreamCard()
-      : base(null)
     {
       _name = "RadioWebStream Card (builtin)";
-      _devicePath = "(builtin)";
-      _supportsSubChannels = true;
-      _isHybrid = false;
-      _isScanning = false;
-      _epgGrabbing = false;
-      _tunerType = CardType.RadioWebStream;
-      _idleMode = DeviceIdleMode.Stop;
+      _parameters = new ScanParameters();
+    }
+
+    #endregion
+
+    /// <summary>
+    /// returns true if card is currently present
+    /// </summary>
+    public bool CardPresent
+    {
+      get { return _cardPresent; }
+      set { _cardPresent = value; }
+    }
+
+    /// <summary>
+    /// Does the card have a CA module.
+    /// </summary>
+    /// <value>The number of channels decrypting.</value>
+    public bool HasCA
+    {
+      get { return false; }
+    }
+
+    /// <summary>
+    /// Gets or sets the timeout parameters.
+    /// </summary>
+    /// <value>The parameters.</value>
+    public ScanParameters Parameters
+    {
+      get { return _parameters; }
+      set { _parameters = value; }
+    }
+
+    /// <summary>
+    /// Checks the thread id.
+    /// </summary>
+    /// <returns></returns>
+    protected static bool CheckThreadId()
+    {
+      return true;
+      /* unreachable 
+      if (_managedThreadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
+      {
+        Log.Log.WriteFile("RadioWebStream:Invalid thread id!!!");
+        return false;
+      }
+      return true;
+      */
+    }
+
+    #region recording
+
+    /// <summary>
+    /// Starts recording
+    /// </summary>
+    /// <param name="transportStream">Recording type (content or reference)</param>
+    /// <param name="fileName">filename to which to recording should be saved</param>
+    /// <returns></returns>
+    protected void StartRecord(bool transportStream, string fileName)
+    {
+      if (!CheckThreadId()) return;
+      Log.WriteFile("RadioWebStream:StartRecord({0})", fileName);
+      Log.WriteFile("RadioWebStream:Recording currently not implemented");
+      _dateRecordingStarted = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Stop recording
+    /// </summary>
+    /// <returns></returns>
+    protected static void StopRecord()
+    {
+      if (!CheckThreadId()) return;
+      Log.WriteFile("RadioWebStream:StopRecord()");
+    }
+
+    #endregion
+
+    #region Channel linkage handling
+
+    /// <summary>
+    /// Starts scanning for linkage info
+    /// </summary>
+    public void StartLinkageScanner(BaseChannelLinkageScanner callback) {}
+
+    /// <summary>
+    /// Stops/Resets the linkage scanner
+    /// </summary>
+    public void ResetLinkageScanner() {}
+
+    /// <summary>
+    /// Returns the channel linkages grabbed
+    /// </summary>
+    public List<PortalChannel> ChannelLinkages
+    {
+      get { return null; }
+    }
+
+    #endregion
+
+    #region epg & scanning
+
+    /// <summary>
+    /// returns the ITVScanning interface used for scanning channels
+    /// </summary>
+    public ITVScanning ScanningInterface
+    {
+      get { return null; }
+    }
+
+    /// <summary>
+    /// returns the ITVEPG interface used for grabbing the epg
+    /// </summary>
+    public ITVEPG EpgInterface
+    {
+      get { return null; }
+    }
+
+    /// <summary>
+    /// Aborts grabbing the epg
+    /// </summary>
+    public void AbortGrabbing()
+    {
+      return;
+    }
+
+    /// <summary>
+    /// Returns the EPG grabbed or null if epg grabbing is still busy
+    /// </summary>
+    public List<EpgChannel> Epg
+    {
+      get { return null; }
     }
 
     #endregion
@@ -64,60 +196,59 @@ namespace TvLibrary.Implementations.RadioWebStream
     #region tuning & recording
 
     /// <summary>
-    /// Check if the tuner can tune to a specific channel.
+    /// Method to check if card can tune to the channel specified
     /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
-    public override bool CanTune(IChannel channel)
+    /// <returns>true if card can tune to the channel otherwise false</returns>
+    public bool CanTune(IChannel channel)
     {
-      if (channel is RadioWebStreamChannel && channel.IsRadio)
-      {
-        return true;
-      }
-      return false;
+      if (channel.MediaType != MediaTypeEnum.Radio) return false;
+      if ((channel as RadioWebStreamChannel) == null) return false;
+      return true;
     }
 
     /// <summary>
-    /// Tune to a specific channel.
+    /// Tunes the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being tuned.</param>
-    /// <param name="channel">The channel to tune to.</param>
-    /// <returns>the subchannel associated with the tuned channel</returns>
-    public override ITvSubChannel Tune(int subChannelId, IChannel channel)
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns></returns>
+    public ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
-      Log.Log.WriteFile("RadioWebStream:  Tune:{0}", channel);
+      Log.WriteFile("RadioWebStream:  Tune:{0}", channel);
       return null;
     }
 
     /// <summary>
-    /// Scan a specific channel.
+    /// Scans the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being scanned.</param>
-    /// <param name="channel">The channel to scan.</param>
-    /// <returns>the subchannel associated with the scanned channel</returns>
-    public override ITvSubChannel Scan(int subChannelId, IChannel channel)
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns></returns>
+    public ITvSubChannel Scan(int subChannelId, IChannel channel)
     {
-      Log.Log.WriteFile("RadioWebStream:  Scan:{0}", channel);
+      Log.WriteFile("RadioWebStream:  Scan:{0}", channel);
       return null;
     }
 
+    #endregion
+
+    #region quality control
+
     /// <summary>
-    /// Actually tune to a channel.
+    /// Get/Set the quality
     /// </summary>
-    /// <param name="channel">The channel to tune to.</param>
-    protected override void PerformTuning(IChannel channel)
+    public IQuality Quality
     {
-      Log.Log.WriteFile("RadioWebStream: perform tuning");
+      get { return null; }
+      set { }
     }
 
     /// <summary>
-    /// Allocate a new subchannel instance.
+    /// Property which returns true if card supports quality control
     /// </summary>
-    /// <param name="channel">The service or channel to associate with the subchannel.</param>
-    /// <returns>a handle for the subchannel</returns>
-    protected override int CreateNewSubChannel(IChannel channel)
+    public bool SupportsQualityControl
     {
-      return -1;
+      get { return false; }
     }
 
     #endregion
@@ -125,22 +256,150 @@ namespace TvLibrary.Implementations.RadioWebStream
     #region properties
 
     /// <summary>
-    /// Stops the current graph
+    /// Gets the number of channels the card is currently decrypting.
     /// </summary>
-    /// <returns></returns>
-    public override void Stop()
+    /// <value>The number of channels decrypting.</value>
+    public int NumberOfChannelsDecrypting
     {
+      get { return 0; }
     }
 
     /// <summary>
-    /// Update the tuner signal status statistics.
+    /// Gets a value indicating whether card supports subchannels
     /// </summary>
-    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
-    protected override void UpdateSignalStatus(bool force)
+    /// <value><c>true</c> if card supports sub channels; otherwise, <c>false</c>.</value>
+    public bool SupportsSubChannels
     {
-      _tunerLocked = true;
-      _signalLevel = 100;
-      _signalQuality = 100;
+      get { return true; }
+    }
+
+    /// <summary>
+    /// Frees the sub channel.
+    /// </summary>
+    /// <param name="id">The id.</param>
+    public void FreeSubChannel(int id) {}
+
+    /// <summary>
+    /// Gets the sub channel.
+    /// </summary>
+    /// <param name="id">The id.</param>
+    /// <returns></returns>
+    public ITvSubChannel GetSubChannel(int id)
+    {
+      return null;
+    }
+
+    /// <summary>
+    /// Gets the first sub channel.
+    /// </summary>    
+    /// <returns></returns>
+    public ITvSubChannel GetFirstSubChannel()
+    {
+      return null;
+    }
+
+    /// <summary>
+    /// Gets the sub channels.
+    /// </summary>
+    /// <value>The sub channels.</value>
+    public ITvSubChannel[] SubChannels
+    {
+      get { return new ITvSubChannel[0]; }
+    }
+
+    public void CancelTune(int subChannel)
+    {
+    }
+
+    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
+
+    /// <summary>
+    /// Gets/sets the card name
+    /// </summary>
+    public string Name
+    {
+      get { return _name; }
+      set { _name = value; }
+    }
+
+    /// <summary>
+    /// Gets/sets the card cardType
+    /// </summary>
+    public CardType CardType
+    {
+      get { return CardType.RadioWebStream; }
+    }
+
+    /// <summary>
+    /// Stops the current graph
+    /// </summary>
+    /// <returns></returns>
+    public void StopGraph()
+    {
+      if (!CheckThreadId()) return;
+    }
+
+    /// <summary>
+    /// Gets wether or not card supports pausing the graph.
+    /// </summary>
+    public bool SupportsPauseGraph
+    {
+      get { return false; }
+    }
+
+    /// <summary>
+    /// Pause the current graph
+    /// </summary>
+    /// <returns></returns>
+    public void PauseGraph()
+    {
+      if (!CheckThreadId()) return;
+    }
+
+    /// <summary>
+    /// Returns if the tuner belongs to a hybrid card
+    /// </summary>
+    public bool IsHybrid
+    {
+      get { return false; }
+      set { }
+    }
+
+    /// <summary>
+    /// When the tuner is locked onto a signal this property will return true
+    /// otherwise false
+    /// </summary>
+    public bool IsTunerLocked
+    {
+      get { return true; }
+    }
+
+    /// <summary>
+    /// returns the signal quality
+    /// </summary>
+    public int SignalQuality
+    {
+      get
+      {
+        if (!CheckThreadId()) return 0;
+        if (IsTunerLocked)
+          return 100;
+        return 0;
+      }
+    }
+
+    /// <summary>
+    /// returns the signal level
+    /// </summary>
+    public int SignalLevel
+    {
+      get
+      {
+        if (!CheckThreadId()) return 0;
+        if (IsTunerLocked)
+          return 100;
+        return 0;
+      }
     }
 
     #endregion
@@ -150,11 +409,199 @@ namespace TvLibrary.Implementations.RadioWebStream
     /// <summary>
     /// Disposes this instance.
     /// </summary>
-    public override void Dispose()
+    public virtual void Dispose()
     {
-      Log.Log.WriteFile("RadioWebStream:Dispose()");
+      Log.WriteFile("RadioWebStream:Dispose()");
+      if (!CheckThreadId()) return;
     }
 
     #endregion
+
+    /// <summary>
+    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// </returns>
+    public override string ToString()
+    {
+      return _name;
+    }
+
+    /// <summary>
+    /// Gets/sets the card device
+    /// </summary>
+    public string DevicePath
+    {
+      get { return "(builtin)"; }
+    }
+
+    /// <summary>
+    /// gets the current filename used for timeshifting
+    /// </summary>
+    public string TimeShiftFileName
+    {
+      get { return ""; }
+    }
+
+    /// <summary>
+    /// returns true if card is currently grabbing the epg
+    /// </summary>
+    public bool IsEpgGrabbing
+    {
+      get { return false; }
+      set { }
+    }
+
+    /// <summary>
+    /// returns true if we timeshift in transport stream mode
+    /// false we timeshift in program stream mode
+    /// </summary>
+    /// <value>true for transport stream, false for program stream.</value>
+    public bool IsTimeshiftingTransportStream
+    {
+      get { return false; }
+    }
+
+    /// <summary>
+    /// returns true if we record in transport stream mode
+    /// false we record in program stream mode
+    /// </summary>
+    /// <value>true for transport stream, false for program stream.</value>
+    public bool IsRecordingTransportStream
+    {
+      get { return false; }
+    }
+
+    /// <summary>
+    /// returns true if card is currently scanning
+    /// </summary>
+    public bool IsScanning
+    {
+      get { return false; }
+      set { }
+    }
+
+    /// <summary>
+    /// returns the max. channel numbers for RadioWebStreamCards
+    /// </summary>
+    public int MaxChannel
+    {
+      get { return 99999; }
+    }
+
+    /// <summary>
+    /// returns the min. channel numbers for RadioWebStreamCards
+    /// </summary>
+    /// <value>The min channel.</value>
+    public int MinChannel
+    {
+      get { return 1; }
+    }
+
+    /// <summary>
+    /// returns the date/time when timeshifting has been started for the card specified
+    /// </summary>
+    /// <returns>DateTime containg the date/time when timeshifting was started</returns>
+    public DateTime StartOfTimeShift
+    {
+      get { return DateTime.MaxValue; }
+    }
+
+    /// <summary>
+    /// returns the date/time when recording has been started for the card specified
+    /// </summary>
+    /// <returns>DateTime containg the date/time when recording was started</returns>
+    public DateTime RecordingStarted
+    {
+      get { return _dateRecordingStarted; }
+    }
+
+    #region audio streams
+
+    /// <summary>
+    /// returns the list of available audio streams
+    /// </summary>
+    public List<IAudioStream> AvailableAudioStreams
+    {
+      get
+      {
+        List<IAudioStream> streams = new List<IAudioStream>();
+        AnalogAudioStream stream = new AnalogAudioStream();
+        stream.AudioMode = TVAudioMode.Stereo;
+        stream.Language = "Stereo";
+        streams.Add(stream);
+        return streams;
+      }
+    }
+
+    /// <summary>
+    /// get/set the current selected audio stream
+    /// </summary>
+    public IAudioStream CurrentAudioStream
+    {
+      get { return AvailableAudioStreams[0]; }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Returns true when unscrambled audio/video is received otherwise false
+    /// </summary>
+    /// <returns>true of false</returns>
+    public bool IsReceivingAudioVideo
+    {
+      get { return true; }
+    }
+
+    /// <summary>
+    /// Gets or sets the type of the cam.
+    /// </summary>
+    /// <value>The type of the cam.</value>
+    public CamType CamType
+    {
+      get { return CamType.Default; }
+      set { }
+    }
+
+    /// <summary>
+    /// Gets or sets the context.
+    /// </summary>
+    /// <value>The context.</value>
+    public object Context
+    {
+      get { return m_context; }
+      set { m_context = value; }
+    }
+
+    /// <summary>
+    /// Grabs the epg.
+    /// </summary>
+    /// <param name="callback">The callback which gets called when epg is received or canceled.</param>
+    public void GrabEpg(BaseEpgGrabber callback) {}
+
+    /// <summary>
+    /// Start grabbing the epg while timeshifting
+    /// </summary>
+    public void GrabEpg() {}
+
+    /// <summary>
+    /// Gets the interface for controlling the diseqc motor
+    /// </summary>
+    /// <value>Theinterface for controlling the diseqc motor.</value>
+    public IDiSEqCMotor DiSEqCMotor
+    {
+      get { return null; }
+    }
+
+    /// <summary>
+    /// Updates the signal state for a card.
+    /// </summary>
+    public void ResetSignalUpdate() {}
+
+    /// <summary>
+    /// Reloads the card configuration
+    /// </summary>
+    public void ReloadCardConfiguration() {}
   }
 }

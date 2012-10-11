@@ -22,20 +22,25 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using DirectShowLib;
-using TvLibrary.ChannelLinkage;
-using TvLibrary.Epg;
-using TvLibrary.Implementations.Analog.Components;
-using TvLibrary.Implementations.Analog.GraphComponents;
-using TvLibrary.Implementations.Analog.QualityControl;
-using TvLibrary.Implementations.DVB;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Analyzer;
-using Capture = TvLibrary.Implementations.Analog.Components.Capture;
-using Crossbar = TvLibrary.Implementations.Analog.Components.Crossbar;
-using Tuner = TvLibrary.Implementations.Analog.Components.Tuner;
-using TvAudio = TvLibrary.Implementations.Analog.Components.TvAudio;
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.QualityControl;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Analog;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Analog.GraphComponents;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using Capture = Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components.Capture;
+using Crossbar = Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components.Crossbar;
+using Tuner = Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components.Tuner;
+using TvAudio = Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components.TvAudio;
 
-namespace TvLibrary.Implementations.Analog
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog
 {
   /// <summary>
   /// Class for handling various types of Analog TV Cards
@@ -62,25 +67,27 @@ namespace TvLibrary.Implementations.Analog
     private IBaseFilter _tsFileSink;
     private IQuality _qualityControl;
     private Configuration _configuration;
-    // Maximum and minimum channel numbers that the tuner is physically capable of tuning to.
-    private int _minChannel = -1;
-    private int _maxChannel = -1;
 
     #endregion
 
     #region ctor
 
     ///<summary>
-    /// Constructor for the analog
+    /// Constrcutor for the analog
     ///</summary>
     ///<param name="device">Tuner Device</param>
     public TvCardAnalog(DsDevice device)
       : base(device)
     {
+      _parameters = new ScanParameters();
+      _mapSubChannels = new Dictionary<int, BaseSubChannel>();
       _supportsSubChannels = true;
       _minChannel = 0;
       _maxChannel = 128;
-      _tunerType = CardType.Analog;
+      _camType = CamType.Default;
+      _conditionalAccess = null;
+      _cardType = CardType.Analog;
+      _epgGrabbing = false;
       _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
       Configuration.writeConfiguration(_configuration);
     }
@@ -90,17 +97,14 @@ namespace TvLibrary.Implementations.Analog
     #region public methods
 
     /// <summary>
-    /// Check if the tuner can tune to a specific channel.
+    /// Method to check if card can tune to the channel specified
     /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
-    public override bool CanTune(IChannel channel)
+    /// <returns>true if card can tune to the channel otherwise false</returns>
+    public bool CanTune(IChannel channel)
     {
-      if (!(channel is AnalogChannel))
-      {
+      if ((channel as AnalogChannel) == null)
         return false;
-      }
-      if (channel.IsRadio)
+      if (channel.MediaType == MediaTypeEnum.Radio)
       {
         if (string.IsNullOrEmpty(_configuration.Graph.Tuner.Name))
         {
@@ -111,17 +115,156 @@ namespace TvLibrary.Implementations.Analog
       return true;
     }
 
-    #endregion
-
-    #region scanning
 
     /// <summary>
-    /// Get the device's channel scanning interface.
+    /// Pause the current graph
     /// </summary>
-    public override ITVScanning ScanningInterface
+    /// <returns></returns>
+    public override void PauseGraph()
+    {
+      if (!CheckThreadId())
+        return;
+      FreeAllSubChannels();
+      FilterState state;
+      if (_graphBuilder == null)
+        return;
+      IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
+      if (mediaCtl == null)
+      {
+        throw new TvException("Can not convert graphBuilder to IMediaControl");
+      }
+      mediaCtl.GetState(10, out state);
+
+      Log.WriteFile("analog: PauseGraph state:{0}", state);
+      _isScanning = false;
+      if (_tsFileSink != null)
+      {
+        IMPRecord record = _tsFileSink as IMPRecord;
+        if (record != null)
+        {
+          record.StopTimeShifting(_subChannelId);
+          record.StopRecord(_subChannelId);
+        }
+      }
+      if (state != FilterState.Running)
+      {
+        _graphState = GraphState.Created;
+        return;
+      }
+      int hr = mediaCtl.Pause();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("analog: PauseGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to pause graph");
+      }
+      Log.WriteFile("analog: Graph paused");
+    }
+
+
+    /// <summary>
+    /// Stops the current graph
+    /// </summary>
+    /// <returns></returns>
+    public override void StopGraph()
+    {
+      if (!CheckThreadId())
+        return;
+      FreeAllSubChannels();
+      FilterState state;
+      if (_graphBuilder == null)
+        return;
+      IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
+      if (mediaCtl == null)
+      {
+        throw new TvException("Can not convert graphBuilder to IMediaControl");
+      }
+      mediaCtl.GetState(10, out state);
+
+      Log.WriteFile("analog: StopGraph state:{0}", state);
+      _isScanning = false;
+      if (_tsFileSink != null)
+      {
+        IMPRecord record = _tsFileSink as IMPRecord;
+        if (record != null)
+        {
+          record.StopTimeShifting(_subChannelId);
+          record.StopRecord(_subChannelId);
+        }
+      }
+      if (state == FilterState.Stopped)
+      {
+        _graphState = GraphState.Created;
+        return;
+      }
+      int hr = mediaCtl.Stop();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("analog: RunGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to stop graph");
+      }
+      Log.WriteFile("analog: Graph stopped");
+    }
+
+    #endregion
+
+    #region Channel linkage handling
+
+    /// <summary>
+    /// Starts scanning for linkage info
+    /// </summary>
+    public void StartLinkageScanner(BaseChannelLinkageScanner callback) {}
+
+    /// <summary>
+    /// Stops/Resets the linkage scanner
+    /// </summary>
+    public void ResetLinkageScanner() {}
+
+    /// <summary>
+    /// Returns the channel linkages grabbed
+    /// </summary>
+    public List<PortalChannel> ChannelLinkages
+    {
+      get { return null; }
+    }
+
+    #endregion
+
+    #region epg & scanning
+
+    /// <summary>
+    /// Grabs the epg.
+    /// </summary>
+    /// <param name="callback">The callback which gets called when epg is received or canceled.</param>
+    public void GrabEpg(BaseEpgGrabber callback) {}
+
+    /// <summary>
+    /// Start grabbing the epg while timeshifting
+    /// </summary>
+    public void GrabEpg() {}
+
+    /// <summary>
+    /// Aborts grabbing the epg. This also triggers the OnEpgReceived callback.
+    /// </summary>
+    public void AbortGrabbing() {}
+
+    /// <summary>
+    /// returns a list of all epg data for each channel found.
+    /// </summary>
+    /// <value>The epg.</value>
+    public List<EpgChannel> Epg
+    {
+      get { return null; }
+    }
+
+    /// <summary>
+    /// returns the ITVScanning interface used for scanning channels
+    /// </summary>
+    public ITVScanning ScanningInterface
     {
       get
       {
+        if (!CheckThreadId())
+          return null;
         return new AnalogScanning(this);
       }
     }
@@ -130,6 +273,16 @@ namespace TvLibrary.Implementations.Analog
 
     #region tuning & recording
 
+    /// <summary>
+    /// Scans the specified channel.
+    /// </summary>
+    /// <param name="subChannelId">The sub channel id.</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
+    public ITvSubChannel Scan(int subChannelId, IChannel channel)
+    {
+      return Tune(subChannelId, channel);
+    }
 
     /// <summary>
     /// Tunes the specified channel.
@@ -137,13 +290,37 @@ namespace TvLibrary.Implementations.Analog
     /// <param name="subChannelId">The sub channel id.</param>
     /// <param name="channel">The channel.</param>
     /// <returns>true if succeeded else false</returns>
-    public override ITvSubChannel Tune(int subChannelId, IChannel channel)
+    public ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
-      ITvSubChannel subChannel = base.Tune(subChannelId, channel);
-      if (_encoder != null)
+      Log.WriteFile("analog:  Tune:{0}", channel);
+      if (_graphState == GraphState.Idle)
       {
-        _encoder.UpdatePinVideo(channel.IsTv, _graphBuilder);
+        BuildGraph();
       }
+      BaseSubChannel subChannel;
+      if (_mapSubChannels.ContainsKey(subChannelId))
+      {
+        subChannel = _mapSubChannels[subChannelId];
+      }
+      else
+      {
+        subChannelId = GetNewSubChannel(channel);
+        subChannel = _mapSubChannels[subChannelId];
+      }
+      subChannel.CurrentChannel = channel;
+      subChannel.OnBeforeTune();
+      PerformTuning(channel);
+      subChannel.OnAfterTune();
+      try
+      {
+        RunGraph(subChannel.SubChannelId);
+      }
+      catch (Exception)
+      {
+        FreeSubChannel(subChannel.SubChannelId);
+        throw;
+      }
+      _encoder.UpdatePinVideo(channel.MediaType == MediaTypeEnum.TV, _graphBuilder);
       return subChannel;
     }
 
@@ -152,19 +329,16 @@ namespace TvLibrary.Implementations.Analog
     #region subchannel management
 
     /// <summary>
-    /// Allocate a new subchannel instance.
+    /// Allocates a new instance of TvDvbChannel which handles the new subchannel
     /// </summary>
-    /// <param name="channel">The service or channel to associate with the subchannel.</param>
-    /// <returns>a handle for the subchannel</returns>
-    protected override int CreateNewSubChannel(IChannel channel)
+    /// <returns>handle for to the subchannel</returns>
+    protected int GetNewSubChannel(IChannel channel)
     {
       int id = _subChannelId++;
-      Log.Log.Info("TvCardAnalog: new subchannel, ID = {0}, subchannel count = {1}", id, _mapSubChannels.Count);
-      AnalogSubChannel subChannel = new AnalogSubChannel(id, this, _tvAudio, _capture.SupportsTeletext, _tsFileSink);
-      subChannel.Parameters = Parameters;
-      subChannel.CurrentChannel = channel;
+      Log.Info("analog:GetNewSubChannel:{0} #{1}", _mapSubChannels.Count, id);
+
+      AnalogSubChannel subChannel = new AnalogSubChannel(this, id, _tvAudio, _capture.SupportsTeletext, _tsFileSink);
       _mapSubChannels[id] = subChannel;
-      FireNewSubChannelEvent(id);
       return id;
     }
 
@@ -175,19 +349,20 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Get/Set the quality
     /// </summary>
-    public override IQuality Quality
+    public IQuality Quality
     {
       get { return _qualityControl; }
+      set { }
     }
 
     /// <summary>
     /// Property which returns true if card supports quality control
     /// </summary>
-    public override bool SupportsQualityControl
+    public bool SupportsQualityControl
     {
       get
       {
-        if (!_isDeviceInitialised)
+        if (_graphState == GraphState.Idle)
         {
           BuildGraph();
         }
@@ -198,7 +373,7 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Reloads the card configuration
     /// </summary>
-    public override void ReloadCardConfiguration()
+    public void ReloadCardConfiguration()
     {
       if (_qualityControl != null)
       {
@@ -213,34 +388,69 @@ namespace TvLibrary.Implementations.Analog
 
     #region properties
 
-    /// <summary>
-    /// Update the tuner signal status statistics.
-    /// </summary>
-    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
-    protected override void UpdateSignalStatus(bool force)
+    ///<summary>
+    ///</summary>
+    ///<returns></returns>
+    public override void LockInOnSignal()
     {
+      bool isLocked = false;
+      DateTime timeStart = DateTime.Now;
+      TimeSpan ts = timeStart - timeStart;
+      while (!isLocked && ts.TotalSeconds < 2)
+      {
+        _tuner.UpdateSignalQuality();
+        isLocked = _tuner.TunerLocked;
+
+        if (!isLocked)
+        {
+          ts = DateTime.Now - timeStart;
+          Log.WriteFile("analog:  LockInOnSignal waiting 20ms");
+          System.Threading.Thread.Sleep(20);
+        }
+      }
+
+      if (!isLocked)
+      {
+        Log.WriteFile("analog:  LockInOnSignal could not lock onto channel - no signal or bad signal");
+        throw new TvExceptionNoSignal("Unable to tune to channel - no signal");
+      }
+      else
+      {
+        Log.WriteFile("analog:  LockInOnSignal ok");
+      }
+    }
+
+    /// <summary>
+    /// When the tuner is locked onto a signal this property will return true
+    /// otherwise false
+    /// </summary>
+    protected override void UpdateSignalQuality(bool force)
+    {
+      _tunerLocked = false;
+      _signalLevel = 0;
+      _signalQuality = 0;
       if (!force)
       {
         TimeSpan ts = DateTime.Now - _lastSignalUpdate;
-        if (ts.TotalMilliseconds < 5000)
+        if (ts.TotalMilliseconds < 5000 || _graphState == GraphState.Idle)
         {
+          _tunerLocked = false;
           return;
         }
       }
-      _lastSignalUpdate = DateTime.Now;
-      if (!GraphRunning() || _tuner == null)
-      {
-        _tunerLocked = false;
-        _signalPresent = false;
-        _signalLevel = 0;
-        _signalQuality = 0;
-        return;
-      }
       _tuner.UpdateSignalQuality();
       _tunerLocked = _tuner.TunerLocked;
-      _signalPresent = _tunerLocked;
       _signalLevel = _tuner.SignalLevel;
       _signalQuality = _tuner.SignalQuality;
+    }
+
+    /// <summary>
+    /// When the tuner is locked onto a signal this property will return true
+    /// otherwise false
+    /// </summary>
+    protected override void UpdateSignalQuality()
+    {
+      UpdateSignalQuality(false);
     }
 
     /// <summary>
@@ -264,12 +474,19 @@ namespace TvLibrary.Implementations.Analog
     /// <summary>
     /// Disposes this instance.
     /// </summary>
-    public override void Dispose()
+    public virtual void Dispose()
     {
       if (_graphBuilder == null)
         return;
-      Log.Log.WriteFile("analog:Dispose()");
+      Log.WriteFile("analog:Dispose()");
+      if (!CheckThreadId())
+        return;
 
+      if (_graphState == GraphState.TimeShifting || _graphState == GraphState.Recording)
+      {
+        // Stop the graph first. To ensure that the timeshift files are no longer blocked
+        StopGraph();
+      }
       FreeAllSubChannels();
       IMediaControl mediaCtl = (_graphBuilder as IMediaControl);
       if (mediaCtl == null)
@@ -278,11 +495,8 @@ namespace TvLibrary.Implementations.Analog
       }
       // Decompose the graph
       mediaCtl.Stop();
-
-      base.Dispose();
-
       FilterGraphTools.RemoveAllFilters(_graphBuilder);
-      Log.Log.WriteFile("analog:All filters removed");
+      Log.WriteFile("analog:All filters removed");
       if (_tuner != null)
       {
         _tuner.Dispose();
@@ -323,9 +537,15 @@ namespace TvLibrary.Implementations.Analog
       _rotEntry = null;
       Release.ComObject("Graphbuilder", _graphBuilder);
       _graphBuilder = null;
-      _isDeviceInitialised = false;
-      Log.Log.WriteFile("analog: dispose completed");
+      _graphState = GraphState.Idle;
+      Log.WriteFile("analog: dispose completed");
     }
+
+    public void CancelTune(int subChannel)
+    {
+    }
+
+    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
 
     #endregion
 
@@ -338,17 +558,18 @@ namespace TvLibrary.Implementations.Analog
     {
       if (_cardId == 0)
       {
+        GetPreloadBitAndCardId();
         _configuration = Configuration.readConfiguration(_cardId, _name, _devicePath);
         Configuration.writeConfiguration(_configuration);
       }
       _lastSignalUpdate = DateTime.MinValue;
       _tunerLocked = false;
-      Log.Log.WriteFile("analog: build graph");
+      Log.WriteFile("analog: build graph");
       try
       {
-        if (_isDeviceInitialised)
+        if (_graphState != GraphState.Idle)
         {
-          Log.Log.WriteFile("analog: Graph already build");
+          Log.WriteFile("analog: Graph already build");
           throw new TvException("Graph already build");
         }
         //create a new filter graph
@@ -360,7 +581,7 @@ namespace TvLibrary.Implementations.Analog
         _tuner = new Tuner(_device);
         if (!_tuner.CreateFilterInstance(graph, _graphBuilder))
         {
-          Log.Log.Error("analog: unable to add tv tuner filter");
+          Log.Error("analog: unable to add tv tuner filter");
           throw new TvException("Analog: unable to add tv tuner filter");
         }
         _minChannel = _tuner.MinChannel;
@@ -369,21 +590,21 @@ namespace TvLibrary.Implementations.Analog
         _crossbar = new Crossbar();
         if (!_crossbar.CreateFilterInstance(graph, _graphBuilder, _tuner))
         {
-          Log.Log.Error("analog: unable to add tv crossbar filter");
+          Log.Error("analog: unable to add tv crossbar filter");
           throw new TvException("Analog: unable to add tv crossbar filter");
         }
         //add the tv audio tuner device and connect it to the crossbar
         _tvAudio = new TvAudio();
         if (!_tvAudio.CreateFilterInstance(graph, _graphBuilder, _tuner, _crossbar))
         {
-          Log.Log.Error("analog: unable to add tv audio tuner filter");
+          Log.Error("analog: unable to add tv audio tuner filter");
           throw new TvException("Analog: unable to add tv audio tuner filter");
         }
         //add the tv capture device and connect it to the crossbar
         _capture = new Capture();
         if (!_capture.CreateFilterInstance(graph, _capBuilder, _graphBuilder, _tuner, _crossbar, _tvAudio))
         {
-          Log.Log.Error("analog: unable to add capture filter");
+          Log.Error("analog: unable to add capture filter");
           throw new TvException("Analog: unable to add capture filter");
         }
         Configuration.writeConfiguration(_configuration);
@@ -392,7 +613,7 @@ namespace TvLibrary.Implementations.Analog
         {
           if (!_teletext.CreateFilterInstance(graph, _graphBuilder, _capture))
           {
-            Log.Log.Error("analog: unable to setup teletext filters");
+            Log.Error("analog: unable to setup teletext filters");
             throw new TvException("Analog: unable to setup teletext filters");
           }
         }
@@ -400,16 +621,16 @@ namespace TvLibrary.Implementations.Analog
         _encoder = new Encoder();
         if (!_encoder.CreateFilterInstance(_graphBuilder, _tuner, _tvAudio, _crossbar, _capture))
         {
-          Log.Log.Error("analog: unable to add encoding filter");
+          Log.Error("analog: unable to add encoding filter");
           throw new TvException("Analog: unable to add capture filter");
         }
-        Log.Log.WriteFile("analog: Check quality control");
+        Log.WriteFile("analog: Check quality control");
         _qualityControl = QualityControlFactory.createQualityControl(_configuration, _encoder.VideoEncoderFilter,
                                                                      _capture.VideoFilter, _encoder.MultiplexerFilter,
                                                                      _encoder.VideoCompressorFilter);
         if (_qualityControl == null)
         {
-          Log.Log.WriteFile("analog: No quality control support found");
+          Log.WriteFile("analog: No quality control support found");
           //If a hauppauge analog card, set bitrate to default
           //As the graph is stopped, we don't need to pass in the deviceID
           //However, if we wish to change quality for a live graph, the deviceID must be passed in
@@ -424,7 +645,7 @@ namespace TvLibrary.Implementations.Analog
               int min, max;
               bool vbr;
               _hauppauge.GetVideoBitRate(out min, out max, out vbr);
-              Log.Log.Write("Hauppauge set video parameters - Max kbps: {0}, Min kbps: {1}, VBR {2}", max, min, vbr);
+              Log.Write("Hauppauge set video parameters - Max kbps: {0}, Min kbps: {1}, VBR {2}", max, min, vbr);
               _hauppauge.Dispose();
               _hauppauge = null;
             }
@@ -435,23 +656,23 @@ namespace TvLibrary.Implementations.Analog
         {
           throw new TvException("Analog: unable to add mpfilewriter");
         }
-        Log.Log.WriteFile("analog: Graph is built");
+        Log.WriteFile("analog: Graph is built");
         FilterGraphTools.SaveGraphFile(_graphBuilder, "analog.grf");
         ReloadCardConfiguration();
-        _isDeviceInitialised = true;
+        _graphState = GraphState.Created;
       }
       catch (TvExceptionSWEncoderMissing ex)
       {
-        Log.Log.Write(ex);
+        Log.Write(ex);
         Dispose();
-        _isDeviceInitialised = false;
+        _graphState = GraphState.Idle;
         throw;
       }
       catch (Exception ex)
       {
-        Log.Log.Write(ex);
+        Log.Write(ex);
         Dispose();
-        _isDeviceInitialised = false;
+        _graphState = GraphState.Idle;
         throw new TvExceptionGraphBuildingFailed("Graph building failed", ex);
       }
     }
@@ -464,28 +685,30 @@ namespace TvLibrary.Implementations.Analog
     /// <returns></returns>
     private bool AddTsFileSink()
     {
-      Log.Log.WriteFile("analog:AddTsFileSink");
+      if (!CheckThreadId())
+        return false;
+      Log.WriteFile("analog:AddTsFileSink");
       _tsFileSink = (IBaseFilter)new MpFileWriter();
       int hr = _graphBuilder.AddFilter(_tsFileSink, "TsFileSink");
       if (hr != 0)
       {
-        Log.Log.WriteFile("analog:AddTsFileSink returns:0x{0:X}", hr);
+        Log.WriteFile("analog:AddTsFileSink returns:0x{0:X}", hr);
         throw new TvException("Unable to add TsFileSink");
       }
-      Log.Log.WriteFile("analog:connect muxer->tsfilesink");
+      Log.WriteFile("analog:connect muxer->tsfilesink");
       IPin pin = DsFindPin.ByDirection(_encoder.MultiplexerFilter, PinDirection.Output, 0);
       if (!FilterGraphTools.ConnectPin(_graphBuilder, pin, _tsFileSink, 0))
       {
-        Log.Log.WriteFile("analog:unable to connect muxer->tsfilesink");
+        Log.WriteFile("analog:unable to connect muxer->tsfilesink");
         throw new TvException("Unable to connect pins");
       }
       Release.ComObject("mpegmux pinin", pin);
       if (_capture.SupportsTeletext)
       {
-        Log.Log.WriteFile("analog:connect wst/vbi codec->tsfilesink");
+        Log.WriteFile("analog:connect wst/vbi codec->tsfilesink");
         if (!FilterGraphTools.ConnectPin(_graphBuilder, _teletext.WST_VBI_Pin, _tsFileSink, 1))
         {
-          Log.Log.WriteFile("analog:unable to connect wst/vbi->tsfilesink");
+          Log.WriteFile("analog:unable to connect wst/vbi->tsfilesink");
           throw new TvException("Unable to connect pins");
         }
       }
@@ -494,15 +717,73 @@ namespace TvLibrary.Implementations.Analog
 
     #endregion
 
+    /// <summary>
+    /// Methods which starts the graph
+    /// </summary>
+    public override void RunGraph(int subChannel)
+    {
+      bool graphRunning = GraphRunning();
+
+      if (!CheckThreadId())
+      {
+        return;
+      }
+      if (_mapSubChannels.ContainsKey(subChannel))
+      {
+        if (graphRunning)
+        {
+          LockInOnSignal();          
+          }
+        _mapSubChannels[subChannel].AfterTuneEvent -= new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].AfterTuneEvent += new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+        _mapSubChannels[subChannel].OnGraphStart();
+      }
+
+      if (graphRunning)
+      {
+        return;
+      }
+
+      Log.WriteFile("analog: RunGraph");
+      int hr = 0;
+      IMediaControl mediaCtrl = _graphBuilder as IMediaControl;
+      if (mediaCtrl == null)
+      {
+        Log.WriteFile("analog: RunGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to start graph");
+      }
+      hr = mediaCtrl.Run();
+      if (hr < 0 || hr > 1)
+      {
+        Log.WriteFile("analog: RunGraph returns:0x{0:X}", hr);
+        throw new TvException("Unable to start graph");
+      }
+      GraphRunning();
+      Log.WriteFile("analog: RunGraph succeeded");
+      if (!_mapSubChannels.ContainsKey(subChannel))
+      {
+        return;
+      }
+      LockInOnSignal();
+      _mapSubChannels[subChannel].AfterTuneEvent -= new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+      _mapSubChannels[subChannel].AfterTuneEvent += new BaseSubChannel.OnAfterTuneDelegate(OnAfterTuneEvent);
+      _mapSubChannels[subChannel].OnGraphStarted();
+    }
+
     #endregion
 
     #region private helper
 
     /// <summary>
-    /// Actually tune to a channel.
+    /// Checks the thread id.
     /// </summary>
-    /// <param name="channel">The channel to tune to.</param>
-    protected override void PerformTuning(IChannel channel)
+    /// <returns></returns>
+    private static bool CheckThreadId()
+    {
+      return true;
+    }
+
+    private void PerformTuning(IChannel channel)
     {
       AnalogChannel analogChannel = channel as AnalogChannel;
       _tuner.PerformTune(analogChannel);
@@ -510,6 +791,11 @@ namespace TvLibrary.Implementations.Analog
       _maxChannel = _tuner.MaxChannel;
       _crossbar.PerformTune(analogChannel);
       _capture.PerformTune(analogChannel);
+      _lastSignalUpdate = DateTime.MinValue;
+      if (_graphState == GraphState.Idle)
+        _graphState = GraphState.Created;
+      UpdateSignalQuality(true);
+      _lastSignalUpdate = DateTime.MinValue;
     }
 
     #endregion
@@ -547,6 +833,21 @@ namespace TvLibrary.Implementations.Analog
     {
       get { return _tuner.AudioFrequency; }
     }
+
+    #endregion
+
+    #region abstract implemented Methods
+
+    /// <summary>
+    /// A derrived class should activate / deactivate the scanning
+    /// </summary>
+    protected override void OnScanning() {}
+
+    /// <summary>
+    /// A derrived class should activate / deactivate the epg grabber
+    /// </summary>
+    /// <param name="value">Mode</param>
+    protected override void UpdateEpgGrabber(bool value) {}
 
     #endregion
   }

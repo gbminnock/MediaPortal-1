@@ -19,13 +19,12 @@
 #endregion
 
 using System.Collections.Generic;
-using TvLibrary.Interfaces;
-using TvLibrary.Epg;
-using TvLibrary.ChannelLinkage;
-using System;
-using TvLibrary.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 
-namespace TvLibrary.Implementations.Hybrid
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.Hybrid
 {
   /// <summary>
   /// This class is a wrapper for all cards that are part of a hybrid card group
@@ -77,46 +76,29 @@ namespace TvLibrary.Implementations.Hybrid
 
     #endregion
 
-    #region events
-
-    /// <summary>
-    /// Set the device's new subchannel event handler.
-    /// </summary>
-    /// <value>the delegate</value>
-    public OnNewSubChannelDelegate OnNewSubChannelEvent
-    {
-      set
-      {
-        TvCardBase internalDevice = _internalCard as TvCardBase;
-        if (internalDevice == null)
-        {
-          throw new TvException("HybridCard: failed to set new subchannel event handler for device type " + _internalCard.CardType);
-        }
-        internalDevice.NewSubChannelEvent += value;
-      }
-    }
-
-    /// <summary>
-    /// Set the device's after tune event handler.
-    /// </summary>
-    /// <value>the delegate</value>
-    public OnAfterTuneDelegate OnAfterTuneEvent
-    {
-      set
-      {
-        TvCardBase internalDevice = _internalCard as TvCardBase;
-        if (internalDevice == null)
-        {
-          throw new TvException("HybridCard: failed to set after tune event handler for device type " + _internalCard.CardType);
-        }
-        internalDevice.AfterTuneEvent -= value;
-        internalDevice.AfterTuneEvent += value;
-      }
-    }
-
-    #endregion
-
     #region properties
+
+    /// <summary>
+    /// Sets the after tune event listener on the internal card.
+    /// </summary>
+    /// <value>the delegate</value>
+    public TvCardBase.OnAfterTuneDelegate AfterTuneEvent
+    {
+      set
+      {
+        (_internalCard as TvCardBase).AfterTuneEvent -= value;
+        (_internalCard as TvCardBase).AfterTuneEvent += value;
+      }
+    }
+
+    /// <summary>
+    /// Gets whether or not card supports pausing the graph.
+    /// </summary>
+    /// <value><c>true</c> if the card supports pausing the graph, otherwise <c>false</c></value>
+    public bool SupportsPauseGraph
+    {
+      get { return _internalCard.SupportsPauseGraph; }
+    }
 
     /// <summary>
     /// returns true if card is currently present
@@ -128,28 +110,18 @@ namespace TvLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Does the device support conditional access?
+    /// Does the card have a CA module.
     /// </summary>
-    /// <value><c>true</c> if the device supports conditional access, otherwise <c>false</c></value>
-    public bool IsConditionalAccessSupported
+    /// <value><c>true</c> if the card supports conditional access, otherwise <c>false</c></value>
+    public bool HasCA
     {
-      get { return _internalCard.IsConditionalAccessSupported; }
+      get { return _internalCard.HasCA; }
     }
 
     /// <summary>
-    /// Get the device's conditional access menu interaction interface. This interface is only applicable if
-    /// conditional access is supported.
+    /// Gets the number of channels the card is currently decrypting.
     /// </summary>
-    /// <value><c>null</c> if the device does not support conditional access</value>
-    public ICiMenuActions CaMenuInterface
-    {
-      get { return _internalCard.CaMenuInterface; }
-    }
-
-    /// <summary>
-    /// Get a count of the number of services that the device is currently decrypting.
-    /// </summary>
-    /// <value>The number of services currently being decrypted.</value>
+    /// <value>The number of channels decrypting.</value>
     public int NumberOfChannelsDecrypting
     {
       get { return _internalCard.NumberOfChannelsDecrypting; }
@@ -208,22 +180,33 @@ namespace TvLibrary.Implementations.Hybrid
 
 
     /// <summary>
-    /// Check if the tuner can tune to a specific channel.
+    /// Method to check if card can tune to the channel specified
     /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
+    /// <param name="channel"></param>
+    /// <returns>
+    /// true if card can tune to the channel otherwise false
+    /// </returns>
     public bool CanTune(IChannel channel)
     {
       return _internalCard.CanTune(channel);
     }
 
     /// <summary>
-    /// Stops the device.
+    /// Stops the current graph
     /// </summary>
-    public void Stop()
+    public void StopGraph()
     {
-      _group.Stop();
+      _group.StopGraph();
     }
+
+    /// <summary>
+    /// Pauses the current graph
+    /// </summary>
+    public void PauseGraph()
+    {
+      _group.PauseGraph();
+    }
+
 
     /// <summary>
     /// returns true if card is currently grabbing the epg
@@ -286,9 +269,9 @@ namespace TvLibrary.Implementations.Hybrid
     /// Gets the interface for controlling the diseqc motor
     /// </summary>
     /// <value>Theinterface for controlling the diseqc motor.</value>
-    public IDiseqcController DiseqcController
+    public IDiSEqCMotor DiSEqCMotor
     {
-      get { return _internalCard.DiseqcController; }
+      get { return _internalCard.DiSEqCMotor; }
     }
 
     /// <summary>
@@ -350,42 +333,35 @@ namespace TvLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Get the device's channel scanning interface.
+    /// returns the ITVScanning interface used for scanning channels
     /// </summary>
+    /// <value></value>
     public ITVScanning ScanningInterface
     {
       get { return _internalCard.ScanningInterface; }
     }
 
     /// <summary>
-    /// Tune to a specific channel.
+    /// Tunes the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being tuned.</param>
-    /// <param name="channel">The channel to tune to.</param>
-    /// <returns>the subchannel associated with the tuned channel</returns>
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
     public ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
       return _group.Tune(subChannelId, channel);
     }
 
+
     /// <summary>
-    /// Scan a specific channel.
+    /// Scans the specified channel.
     /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being scanned.</param>
-    /// <param name="channel">The channel to scan.</param>
-    /// <returns>the subchannel associated with the scanned channel</returns>
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns>true if succeeded else false</returns>
     public ITvSubChannel Scan(int subChannelId, IChannel channel)
     {
       return _group.Scan(subChannelId, channel);
-    }
-
-    /// <summary>
-    /// Cancel the current tuning process.
-    /// </summary>
-    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being cancelled.</param>
-    public void CancelTune(int subChannelId)
-    {
-      _internalCard.CancelTune(subChannelId);
     }
 
     /// <summary>
@@ -395,6 +371,7 @@ namespace TvLibrary.Implementations.Hybrid
     public IQuality Quality
     {
       get { return _internalCard.Quality; }
+      set { _internalCard.Quality = value; }
     }
 
     /// <summary>
@@ -471,6 +448,15 @@ namespace TvLibrary.Implementations.Hybrid
     }
 
     /// <summary>
+    /// Gets the first sub channel.
+    /// </summary>    
+    /// <returns></returns>
+    public ITvSubChannel GetFirstSubChannel()
+    {
+      return _group.GetFirstSubChannel();
+    }
+
+    /// <summary>
     /// Gets the sub channels.
     /// </summary>
     /// <value>The sub channels.</value>
@@ -478,6 +464,13 @@ namespace TvLibrary.Implementations.Hybrid
     {
       get { return _group.SubChannels; }
     }
+
+    public void CancelTune(int subChannel)
+    {
+
+    }
+
+    public event OnNewSubChannelDelegate OnNewSubChannelEvent;
 
     /// <summary>
     /// Frees the sub channel.

@@ -22,9 +22,9 @@ using System;
 using System.ComponentModel;
 using System.Windows.Forms;
 using DirectShowLib.BDA;
-using TvDatabase;
+using Mediaportal.TV.Server.TVDatabase.Entities;
 
-namespace SetupControls
+namespace Mediaportal.TV.Server.SetupControls
 {
   public partial class FormTuningDetailCommon : Form
   {
@@ -45,22 +45,19 @@ namespace SetupControls
     protected static TuningDetail CreateInitialTuningDetail()
     {
       string channelName = "";
-      int channelFrequency = 0;
+      long channelFrequency = 0;
       int channelNumber = 0;
       int country = 31;
-      bool isRadio = false;
-      bool isTv = false;
       int tunerSource = 0;
       int videoInputType = 0;
       int audioInputType = 0;
-      bool isVcrSignal = false;
       int symbolRate = 0;
-      int modulation = (int)ModulationType.ModNotSet;
-      int polarisation = (int)Polarisation.NotSet;
+      int modulation = 0;
+      int polarisation = 0;
+      int switchFrequency = 0;
       int diseqc = 0;
       int bandwidth = 8;
       int pmtPid = -1;
-      bool freeToAir = true;
       int networkId = -1;
       int serviceId = -1;
       int transportId = -1;
@@ -68,19 +65,50 @@ namespace SetupControls
       int majorChannel = -1;
       string provider = "";
       int channelType = 0;
-      int idLnbType = 0;
+      int band = 0;
       int satIndex = -1;
       var innerFecRate = (int)BinaryConvolutionCodeRate.RateNotSet;
       var pilot = (int)Pilot.NotSet;
       var rollOff = (int)RollOff.NotSet;
       string url = "";
-      int bitrate = 0;
-      return new TuningDetail(-1, channelName, provider,
-                              channelType, channelNumber, channelFrequency, country, isRadio, isTv,
-                              networkId, transportId, serviceId, pmtPid, freeToAir, modulation,
-                              polarisation, symbolRate, diseqc, bandwidth, majorChannel, minorChannel,
-                              videoInputType, audioInputType, isVcrSignal, tunerSource, idLnbType,
-                              satIndex, innerFecRate, pilot, rollOff, url, bitrate);
+      var initialTuningDetail = new TuningDetail
+                                  {                                    
+                                    Name = channelName,
+                                    Provider =provider,
+                                    ChannelType=channelType,
+                                    ChannelNumber=channelNumber,
+                                    Frequency=(int) channelFrequency,
+                                    CountryId=country,                                    
+                                    NetworkId=networkId,
+                                    TransportId=transportId,
+                                    ServiceId=serviceId,
+                                    PmtPid=pmtPid,
+                                    FreeToAir=true,
+                                    Modulation=modulation,
+                                    Polarisation=polarisation,
+                                    Symbolrate=symbolRate,
+                                    DiSEqC=diseqc,
+                                    SwitchingFrequency=switchFrequency,
+                                    Bandwidth=bandwidth,
+                                    MajorChannel=majorChannel,
+                                    MinorChannel=minorChannel,
+                                    VideoSource=videoInputType,
+                                    AudioSource=audioInputType,
+                                    IsVCRSignal=false,
+                                    TuningSource=tunerSource,
+                                    Band=band,
+                                    SatIndex=satIndex,
+                                    InnerFecRate = innerFecRate,
+                                    Pilot=pilot,
+                                    RollOff = rollOff,
+                                    Url = url,
+                                    Bitrate=0
+                                  };
+        
+
+      return initialTuningDetail;
+          
+      ;
     }
   }
 }

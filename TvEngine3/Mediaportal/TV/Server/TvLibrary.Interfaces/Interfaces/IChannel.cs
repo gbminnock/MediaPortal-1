@@ -18,49 +18,35 @@
 
 #endregion
 
-using System;
-namespace TvLibrary.Interfaces
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
+
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
 {
   /// <summary>
   /// interface which describes a tv/radio channel
   /// </summary>
-  public interface IChannel : ICloneable
+  public interface IChannel
   {
     /// <summary>
     /// gets/sets the channel name
     /// </summary>
     string Name { get; set; }
 
-    /// <summary>
-    /// boolean indication if this is a radio channel
-    /// </summary>
-    bool IsRadio { get; set; }
+    
 
     /// <summary>
-    /// boolean indication if this is a tv channel
+    /// Checks if the given channel and this instance are on the different transponder
     /// </summary>
-    bool IsTv { get; set; }
-
-    /// <summary>
-    /// Check if the given channel and this instance are on different transponders.
-    /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
+    /// <param name="channel">Channel to check</param>
+    /// <returns>true, if the channels are on the same transponder</returns>
     bool IsDifferentTransponder(IChannel channel);
 
     /// <summary>
-    /// Get/set whether the channel is a free-to-air or encrypted channel.
+    /// Checks if the given channel is FTA. (Not scrambled)
     /// </summary>
-    bool FreeToAir { get; set; }
+    /// <returns>true, if the channel is FTA</returns>
+    bool FreeToAir { get; }
 
-    /// <summary>
-    /// Get a channel instance with properties set to enable tuning of this channel.
-    /// </summary>
-    /// <remarks>
-    /// For some channel types (especially satellite channels), logical property values must be adjusted or translated
-    /// to enable the channel to be successfully tuned. This function is responsible for making those adjustments.
-    /// </remarks>
-    /// <returns>a channel instance with parameters adjusted as necessary</returns>
-    IChannel GetTuningChannel();
+    MediaTypeEnum MediaType { get; set; }
   }
 }

@@ -22,7 +22,7 @@ using System;
 using System.Runtime.InteropServices;
 using DirectShowLib.BDA;
 
-namespace TvLibrary.Interfaces.Analyzer
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer
 {
   /// <summary>
   /// Tuning types enumeration
@@ -79,6 +79,17 @@ namespace TvLibrary.Interfaces.Analyzer
     /// </summary>
     IsdbS = 0x400
   }
+
+  public enum LNB_Source
+  {
+    LNBSourceNotSet = -1,
+    LNBSourceNotDefined = 0,
+    LNBSourceA = 1,
+    LNBSourceB = 2,
+    LNBSourceC = 3,
+    LNBSourceD = 4,
+    LNBSourceMax,
+  } ;
 
   public enum DiseqC11Switches
   {

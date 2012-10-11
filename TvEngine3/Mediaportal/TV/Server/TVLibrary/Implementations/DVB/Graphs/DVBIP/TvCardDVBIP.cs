@@ -19,298 +19,263 @@
 #endregion
 
 using System;
-using System.Runtime.InteropServices;
 using DirectShowLib;
-using TvLibrary.Channels;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Analyzer;
-using TvLibrary.Interfaces.Device;
+using System.Runtime.InteropServices;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvLibrary.Implementations.DVB
+namespace Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Graphs.DVBIP
 {
+  [ComImport, Guid("fc50bed6-fe38-42d3-b831-771690091a6e")]
+  internal class MpTsAnalyzer {}
+
   /// <summary>
-  /// Implementation of <see cref="T:TvLibrary.Interfaces.ITVCard"/> which handles MediaPortal DVB-IP sources.
+  /// Constructor if TvCardDVBIP
   /// </summary>
-  public class TvCardDVBIP : TvCardDvbBase, ITVCard
+  public abstract class TvCardDVBIP : TvCardDvbBase, ITVCard
   {
-    #region variables
+    /// Stream source filter
+    protected IBaseFilter _filterStreamSource;
 
-    /// <summary>
-    /// The DVB-IP source filter.
-    /// </summary>
-    private IBaseFilter _filterStreamSource = null;
-
-    /// <summary>
-    /// The instance number of this DVB-IP tuner.
-    /// </summary>
-    private int _sequenceNumber = -1;
-
-    /// <summary>
-    /// The input pin for the first filter connected to the source filter.
-    /// </summary>
-    private IPin _firstFilterInputPin = null;
-
-    /// <summary>
-    /// The source filter's default URL.
-    /// </summary>
+    /// default url
     protected string _defaultUrl;
 
-    /// <summary>
-    /// The CLSID/UUID for the source filter.
-    /// </summary>
-    protected Guid _sourceFilterGuid = Guid.Empty;
-
-    #endregion
+    /// sequence
+    protected int _sequence;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TvCardDVBIP"/> class.
+    /// Contstructor
     /// </summary>
-    /// <param name="epgEvents">The EPG events interface.</param>
-    /// <param name="device">The device.</param>
-    /// <param name="sequenceNumber">A sequence number or index for this instance.</param>
-    public TvCardDVBIP(IEpgEvents epgEvents, DsDevice device, int sequenceNumber)
-      : base(epgEvents, device)
+    /// <param name="epgEvents"></param>
+    /// <param name="device"></param>
+    /// <param name="sequence"></param>
+    public TvCardDVBIP(IEpgEvents epgEvents, DsDevice device, int sequence) : base(epgEvents, device)
     {
-      _tunerType = CardType.DvbIP;
-      _defaultUrl = "udp://@0.0.0.0:1234";
-      _sourceFilterGuid = new Guid(0xd3dd4c59, 0xd3a7, 0x4b82, 0x97, 0x27, 0x7b, 0x92, 0x03, 0xeb, 0x67, 0xc0);
-      // Pause graph not supported.
-      if (_idleMode == DeviceIdleMode.Pause)
+      _cardType = CardType.DvbIP;
+      _sequence = sequence;
+      if (_sequence > 0)
       {
-        _idleMode = DeviceIdleMode.Stop;
-      }
-
-      _sequenceNumber = sequenceNumber;
-      if (_sequenceNumber > 0)
-      {
-        _name += "_" + _sequenceNumber;
+        _name = _name + "_" + _sequence;
       }
     }
 
     #region graphbuilding
 
     /// <summary>
-    /// Build the BDA filter graph.
+    /// Build graph
     /// </summary>
     public override void BuildGraph()
     {
-      Log.Log.Debug("TvCardDvbIp: build graph");
       try
       {
-        if (_isDeviceInitialised)
+        if (_graphState != GraphState.Idle)
         {
-          Log.Log.Error("TvCardDvbIp: the graph is already built");
-          throw new TvException("The graph is already built.");
+          throw new TvException("Graph already build");
         }
+        Log.WriteFile("BuildGraph");
 
         _graphBuilder = (IFilterGraph2)new FilterGraph();
+
         _capBuilder = (ICaptureGraphBuilder2)new CaptureGraphBuilder2();
         _capBuilder.SetFiltergraph(_graphBuilder);
         _rotEntry = new DsROTEntry(_graphBuilder);
 
+        _infTeeMain = (IBaseFilter)new InfTee();
+        int hr = _graphBuilder.AddFilter(_infTeeMain, "Inf Tee");
+        if (hr != 0)
+        {
+          Log.Error("dvbip:Add main InfTee returns:0x{0:X}", hr);
+          throw new TvException("Unable to add  mainInfTee");
+        }
+
         AddTsWriterFilterToGraph();
-        _filterStreamSource = FilterGraphTools.AddFilterFromClsid(_graphBuilder, _sourceFilterGuid,
-                                                          "DVB-IP Source Filter");
+        AddStreamSourceFilter(_defaultUrl);
         IBaseFilter lastFilter = _filterStreamSource;
-
-        // Check for and load plugins, adding any additional device filters to the graph.
-        LoadPlugins(_filterStreamSource, ref lastFilter);
-
-        // Complete the graph.
-        AddInfiniteTeeToGraph(ref lastFilter);
-        ConnectTsWriterIntoGraph(lastFilter);
-
-        // Now that the graph is complete, find the input pin of the first filter connected
-        // downstream from the source filter. This is usually an infinite tee.
-        Log.Log.Debug("TvCardDvbIp: finding first downstream filter input pin");
-        IPin sourceOutputPin = DsFindPin.ByDirection(_filterStreamSource, PinDirection.Output, 0);
-        if (sourceOutputPin == null)
+        AddMdPlugs(ref lastFilter);
+        if (!ConnectTsWriter(lastFilter))
         {
-          Log.Log.Error("TvCardDvbIp: failed to find source filter output pin");
-          throw new TvExceptionGraphBuildingFailed("TvCardDvbIp: failed to find source filter output pin");
+          throw new TvExceptionGraphBuildingFailed("Graph building failed");
         }
-        int hr = sourceOutputPin.ConnectedTo(out _firstFilterInputPin);
-        Release.ComObject("DVB-IP Source Filter output pin", sourceOutputPin);
-        if (hr != 0 || _firstFilterInputPin == null)
-        {
-          Log.Log.Error("TvCardDvbIp: failed to find first filter input pin, hr = 0x{0:x} ({1})", hr, HResult.GetDXErrorString(hr));
-          throw new TvExceptionGraphBuildingFailed("TvCardDvbIp: failed to find find first filter input pin");
-        }
-        Log.Log.Debug("TvCardDvbIp: result = success");
 
-        // Open any plugins we found. This is separated from loading because some plugins can't be opened
-        // until the graph has finished being built.
-        OpenPlugins();
-
-        _isDeviceInitialised = true;
-
-        // Plugins can request to pause or start the device - other actions don't make sense here. The running
-        // state is considered more compatible than the paused state, so start takes precedence.
-        DeviceAction actualAction = DeviceAction.Default;
-        foreach (ICustomDevice deviceInterface in _customDeviceInterfaces)
-        {
-          DeviceAction action;
-          deviceInterface.OnInitialised(this, out action);
-          if (action == DeviceAction.Pause)
-          {
-            if (actualAction == DeviceAction.Default)
-            {
-              Log.Log.Debug("TvCardDvbIp: plugin \"{0}\" will cause device pause", deviceInterface.Name);
-              actualAction = DeviceAction.Pause;
-            }
-            else
-            {
-              Log.Log.Debug("TvCardDvbIp: plugin \"{0}\" wants to pause the device, overriden", deviceInterface.Name);
-            }
-          }
-          else if (action == DeviceAction.Start)
-          {
-            Log.Log.Debug("TvCardDvbIp: plugin \"{0}\" will cause device start", deviceInterface.Name);
-            actualAction = action;
-          }
-          else if (action != DeviceAction.Default)
-          {
-            Log.Log.Debug("TvCardDvbIp: plugin \"{0}\" wants unsupported action {1}", deviceInterface.Name, action);
-          }
-        }
-        if (actualAction == DeviceAction.Start || _idleMode == DeviceIdleMode.AlwaysOn)
-        {
-          SetGraphState(FilterState.Running);
-        }
-        else if (actualAction == DeviceAction.Pause)
-        {
-          SetGraphState(FilterState.Paused);
-        }
+        _conditionalAccess = new ConditionalAccess.ConditionalAccess(_filterStreamSource, _filterTsWriter, null, this);
+        _graphState = GraphState.Created;
       }
       catch (Exception ex)
       {
-        Log.Log.Write(ex);
+        Log.Write(ex);
         Dispose();
-        _isDeviceInitialised = false;
-        throw new TvExceptionGraphBuildingFailed("TvCardDvbIp: graph building failed", ex);
+        _graphState = GraphState.Idle;
+        throw ex;
       }
     }
 
     /// <summary>
-    /// Add the DVB-IP stream source filter to the BDA graph.
+    /// AddStreamSourceFilter
     /// </summary>
-    /// <param name="url">The URL to </param>
-    protected virtual void AddStreamSourceFilter(string url)
-    {
-      Log.Log.WriteFile("TvCardDvbIp: add source filter");
-      _filterStreamSource = FilterGraphTools.AddFilterFromClsid(_graphBuilder, _sourceFilterGuid,
-                                                                  "DVB-IP Source Filter");
-      AMMediaType mpeg2ProgramStream = new AMMediaType();
-      mpeg2ProgramStream.majorType = MediaType.Stream;
-      mpeg2ProgramStream.subType = MediaSubType.Mpeg2Transport;
-      mpeg2ProgramStream.unkPtr = IntPtr.Zero;
-      mpeg2ProgramStream.sampleSize = 0;
-      mpeg2ProgramStream.temporalCompression = false;
-      mpeg2ProgramStream.fixedSizeSamples = true;
-      mpeg2ProgramStream.formatType = FormatType.None;
-      mpeg2ProgramStream.formatSize = 0;
-      mpeg2ProgramStream.formatPtr = IntPtr.Zero;
-      ((IFileSourceFilter)_filterStreamSource).Load(url, mpeg2ProgramStream);
-
-      // (Re)connect the source filter to the first filter in the chain.
-      IPin sourceOutputPin = DsFindPin.ByDirection(_filterStreamSource, PinDirection.Output, 0);
-      if (sourceOutputPin == null)
-      {
-        Log.Log.Error("TvCardDvbIp: failed to find source filter output pin");
-        throw new TvException("TvCardDvbIp: failed to find source filter output pin");
-      }
-      int hr = _graphBuilder.Connect(sourceOutputPin, _firstFilterInputPin);
-      Release.ComObject("DVB-IP Source Filter output pin", sourceOutputPin);
-      if (hr != 0)
-      {
-        Log.Log.Error("TvCardDvbIp: failed to connect source filter into graph, hr = 0x{0:x} ({1})", hr, HResult.GetDXErrorString(hr));
-        throw new TvExceptionGraphBuildingFailed("TvCardDvbIp: failed to connect source filter into graph");
-      }
-      Log.Log.Debug("TvCardDvbIp: result = success");
-    }
+    /// <param name="url">url</param>
+    protected abstract void AddStreamSourceFilter(string url);
 
     /// <summary>
-    /// Remove the DVB-IP stream source filter from the BDA graph.
+    /// RemoveStreamSourceFilter
     /// </summary>
-    protected virtual void RemoveStreamSourceFilter()
-    {
-      Log.Log.WriteFile("TvCardDvbIp: remove source filter");
-      if (_filterStreamSource != null)
-      {
-        if (_graphBuilder != null)
-        {
-          _graphBuilder.RemoveFilter(_filterStreamSource);
-        }
-        Release.ComObject("DVB-IP Source Filter", _filterStreamSource);
-        _filterStreamSource = null;
-      }
-    }
+    protected abstract void RemoveStreamSourceFilter();
+
+    /// <summary>
+    /// RunGraph
+    /// </summary>
+    /// <param name="subChannel">subchannel</param>
+    /// <param name="url">url</param>
+    protected abstract void RunGraph(int subChannel, string url);
 
     #endregion
 
-    #region tuning & scanning
+    #region Implementation of ITVCard
 
     /// <summary>
-    /// Actually tune to a channel.
+    /// Checks if channel can be tuned by IPTV
     /// </summary>
-    /// <param name="channel">The channel to tune to.</param>
-    protected override void PerformTuning(IChannel channel)
-    {
-      DVBIPChannel dvbipChannel = channel as DVBIPChannel;
-      if (dvbipChannel == null)
-      {
-        throw new TvException("TvCardDvbIp: channel is not a DVB-IP channel!!! " + channel.GetType().ToString());
-      }
-
-      if (_useCustomTuning)
-      {
-        foreach (ICustomDevice deviceInterface in _customDeviceInterfaces)
-        {
-          ICustomTuner customTuner = deviceInterface as ICustomTuner;
-          if (customTuner != null && customTuner.CanTuneChannel(channel))
-          {
-            Log.Log.Debug("TvCardDvbIp: using custom tuning");
-            if (!customTuner.Tune(channel))
-            {
-              throw new TvException("TvCardDvbIp: failed to tune to channel");
-            }
-            break;
-          }
-        }
-      }
-
-      // DVB-IP "tuning" (if there is such a thing) occurs during this stage of the process. We stop the
-      // graph, then replace the stream source filter with a new filter that is configured to stream from
-      // the appropriate URL.
-      Log.Log.Debug("TvCardDvbIp: using default tuning");
-      SetGraphState(FilterState.Stopped);
-      RemoveStreamSourceFilter();
-      AddStreamSourceFilter(dvbipChannel.Url);
-    }
-
-    /// <summary>
-    /// Check if the tuner can tune to a specific channel.
-    /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>true</c> if the tuner can tune to the channel, otherwise <c>false</c></returns>
+    /// <param name="channel">channel</param>
+    /// <returns>true if DVBIPChannel</returns>
     public override bool CanTune(IChannel channel)
     {
-      if (channel is DVBIPChannel)
-      {
-        return true;
-      }
-      return false;
+      if ((channel as DVBIPChannel) == null) return false;
+      return true;
     }
 
     /// <summary>
-    /// Get the device's channel scanning interface.
+    /// ScanningInterface
     /// </summary>
     public override ITVScanning ScanningInterface
     {
       get
       {
+        if (!CheckThreadId()) return null;
         return new DVBIPScanning(this);
       }
+    }
+
+    /// <summary>
+    /// Scans the specified channel.
+    /// </summary>
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns></returns>
+    public override ITvSubChannel Scan(int subChannelId, IChannel channel)
+    {
+      return DoTune(subChannelId, channel, true);
+    }
+
+    /// <summary>
+    /// Tunes the specified channel.
+    /// </summary>
+    /// <param name="subChannelId">The sub channel id</param>
+    /// <param name="channel">The channel.</param>
+    /// <returns></returns>
+    public override ITvSubChannel Tune(int subChannelId, IChannel channel)
+    {
+      return DoTune(subChannelId, channel, false);
+    }
+
+    /// <summary>
+    /// Tune to channel
+    /// </summary>
+    /// <param name="subChannelId"></param>
+    /// <param name="channel"></param>
+    /// <returns></returns>
+    private ITvSubChannel DoTune(int subChannelId, IChannel channel, bool ignorePMT)
+    {
+      Log.WriteFile("dvbip:  Tune:{0}", channel);
+      ITvSubChannel ch = null;
+      try
+      {
+        DVBIPChannel dvbipChannel = channel as DVBIPChannel;
+        if (dvbipChannel == null)
+        {
+          Log.WriteFile("Channel is not a IP TV channel!!! {0}", channel.GetType().ToString());
+          return null;
+        }
+
+        Log.Info("dvbip: tune: Assigning oldChannel");
+        DVBIPChannel oldChannel = CurrentChannel as DVBIPChannel;
+        if (CurrentChannel != null)
+        {
+          //@FIX this fails for back-2-back recordings
+          //if (oldChannel.Equals(channel)) return _mapSubChannels[0];
+          Log.Info("dvbip: tune: Current Channel != null {0}", CurrentChannel.ToString());
+        }
+        else
+        {
+          Log.Info("dvbip: tune: Current channel is null");
+        }
+        if (_graphState == GraphState.Idle)
+        {
+          Log.Info("dvbip: tune: Building graph");
+          BuildGraph();
+          if (_mapSubChannels.ContainsKey(subChannelId) == false)
+          {
+            subChannelId = GetNewSubChannel(channel);
+          }
+        }
+        else
+        {
+          Log.Info("dvbip: tune: Graph is running");
+        }
+
+        //_pmtPid = -1;
+
+        Log.Info("dvb:Submiting tunerequest Channel:{0} subChannel:{1} ", channel.Name, subChannelId);
+        if (_mapSubChannels.ContainsKey(subChannelId) == false)
+        {
+          Log.Info("dvb:Getting new subchannel");
+          subChannelId = GetNewSubChannel(channel);
+        }
+        else {}
+        Log.Info("dvb:Submit tunerequest size:{0} new:{1}", _mapSubChannels.Count, subChannelId);
+        _mapSubChannels[subChannelId].CurrentChannel = channel;
+
+        _mapSubChannels[subChannelId].OnBeforeTune();
+
+        if (_interfaceEpgGrabber != null)
+        {
+          _interfaceEpgGrabber.Reset();
+        }
+
+        Log.WriteFile("dvb:Submit tunerequest calling put_TuneRequest");
+        _lastSignalUpdate = DateTime.MinValue;
+
+        _mapSubChannels[subChannelId].OnAfterTune();
+        ch = _mapSubChannels[subChannelId];
+        Log.Info("dvbip: tune: Running graph for channel {0}", ch.ToString());
+        Log.Info("dvbip: tune: SubChannel {0}", ch.SubChannelId);
+
+        try
+        {
+          RunGraph(ch.SubChannelId, dvbipChannel.Url);
+        }
+        catch (TvExceptionNoPMT)
+        {
+          if (!ignorePMT)
+          {
+            throw;
+          }
+        }
+
+        Log.Info("dvbip: tune: Graph running. Returning {0}", ch.ToString());
+        return ch;
+      }
+      catch (Exception ex)
+      {
+        if (ch != null)
+        {
+          FreeSubChannel(ch.SubChannelId);
+        }
+        Log.Write(ex);
+        throw;
+      }
+      //unreachable return null;
     }
 
     #endregion
@@ -321,17 +286,29 @@ namespace TvLibrary.Implementations.DVB
     public override void Dispose()
     {
       base.Dispose();
-      RemoveStreamSourceFilter();
+      if (_filterStreamSource != null)
+      {
+        Release.ComObject("_filterStreamSource filter", _filterStreamSource);
+        _filterStreamSource = null;
+      }
     }
 
     /// <summary>
-    /// Stop the device. The actual result of this function depends on device configuration:
+    /// Gets wether or not card supports pausing the graph.
     /// </summary>
-    public override void Stop()
+    public override bool SupportsPauseGraph
     {
-      base.Stop();
-      // TODO: fix me. This logic should be checked (removing and adding filters in stop?) (morpheus_xx)
-      if (_isDeviceInitialised)
+      get { return false; }
+    }
+
+    /// <summary>
+    /// Stops graph
+    /// </summary>
+    public override void StopGraph()
+    {
+      base.StopGraph();
+      //FIXME: this logic should be checked (removing and adding filters in stopgraph?) (morpheus_xx)
+      if (_graphState != GraphState.Idle)
       {
         RemoveStreamSourceFilter();
         AddStreamSourceFilter(_defaultUrl);
@@ -339,22 +316,44 @@ namespace TvLibrary.Implementations.DVB
     }
 
     /// <summary>
-    /// Update the tuner signal status statistics.
+    /// ToString
     /// </summary>
-    /// <param name="force"><c>True</c> to force the status to be updated (status information may be cached).</param>
-    protected override void UpdateSignalStatus(bool force)
+    /// <returns></returns>
+    public override string ToString()
     {
-      if (!force)
+      return _name;
+    }
+
+    /// <summary>
+    /// UpdateSignalQuality
+    /// </summary>
+    protected override void UpdateSignalQuality()
+    {
+      if (GraphRunning() == false)
       {
-        TimeSpan ts = DateTime.Now - _lastSignalUpdate;
-        if (ts.TotalMilliseconds < 5000)
-        {
-          return;
-        }
+        _tunerLocked = false;
+        _signalLevel = 0;
+        _signalPresent = false;
+        _signalQuality = 0;
+        return;
       }
-      if (!GraphRunning() ||
-        CurrentChannel == null ||
-        _filterStreamSource == null)
+      if (CurrentChannel == null)
+      {
+        _tunerLocked = false;
+        _signalLevel = 0;
+        _signalPresent = false;
+        _signalQuality = 0;
+        return;
+      }
+      if (_filterStreamSource == null)
+      {
+        _tunerLocked = false;
+        _signalLevel = 0;
+        _signalPresent = false;
+        _signalQuality = 0;
+        return;
+      }
+      if (!CheckThreadId())
       {
         _tunerLocked = false;
         _signalLevel = 0;
@@ -375,12 +374,22 @@ namespace TvLibrary.Implementations.DVB
     {
       get
       {
-        if (_sequenceNumber == 0)
+        if (_sequence == 0)
         {
           return base.DevicePath;
         }
-        return base.DevicePath + "(" + _sequenceNumber + ")";
+        return base.DevicePath + "(" + _sequence + ")";
       }
+    }
+
+    protected override DVBBaseChannel CreateChannel(int networkid, int transportid, int serviceid, string name)
+    {
+      DVBIPChannel channel = new DVBIPChannel();
+      channel.NetworkId = networkid;
+      channel.TransportId = transportid;
+      channel.ServiceId = serviceid;
+      channel.Name = name;
+      return channel;
     }
   }
 }

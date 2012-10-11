@@ -20,9 +20,8 @@
 
 using System;
 using System.Collections.Generic;
-using TvLibrary.Teletext;
 
-namespace TvLibrary.Interfaces
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
 {
   /// <summary>
   /// Sub Channel interface in TsWriter
@@ -75,12 +74,20 @@ namespace TvLibrary.Interfaces
     /// </summary>
     bool IsTimeShifting { get; }
 
+
     /// <summary>
     /// returns the IChannel to which the card is currently tuned
     /// </summary>
     IChannel CurrentChannel { get; }
 
     #endregion
+
+    /// <summary>
+    /// returns true if we record in transport stream mode
+    /// false we record in program stream mode
+    /// </summary>
+    /// <value>true for transport stream, false for program stream.</value>
+    IVideoStream GetCurrentVideoStream { get; }
 
     #region teletext
 
@@ -136,10 +143,19 @@ namespace TvLibrary.Interfaces
     /// <param name="bufferId">The id of the current timeshift buffer file</param>
     void TimeShiftGetCurrentFilePosition(ref Int64 position, ref long bufferId);
 
+    #endregion
+
+    #region audio streams
+
     /// <summary>
-    /// Cancel the current tuning process.
+    /// returns the list of available audio streams
     /// </summary>
-    void CancelTune();
+    List<IAudioStream> AvailableAudioStreams { get; }
+
+    /// <summary>
+    /// get/set the current selected audio stream
+    /// </summary>
+    IAudioStream CurrentAudioStream { get; set; }
 
     #endregion
   }

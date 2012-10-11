@@ -19,141 +19,92 @@
 #endregion
 
 using System;
-using TvLibrary.Interfaces;
+using System.Runtime.Serialization;
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 
-namespace TvLibrary.Channels
+namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 {
   /// <summary>
-  /// A base class for holding DVB (and ATSC) channel tuning details.
+  /// base class for DVB channels
   /// </summary>
-  [Serializable]
+  [DataContract]
+  [KnownType(typeof(DVBTChannel))]
+  [KnownType(typeof(DVBCChannel))]
+  [KnownType(typeof(DVBSChannel))]
+  [KnownType(typeof(DVBIPChannel))]
+  [KnownType(typeof(ATSCChannel))]  
   public abstract class DVBBaseChannel : IChannel
   {
     #region variables
 
-    private string _channelName = String.Empty;
-    private string _providerName = String.Empty;
-    private long _channelFrequency = -1;
-    private int _networkId = -1;
-    private int _transportId = -1;
-    private int _serviceId = -1;
-    private int _pmtPid = -1;
-    private int _lcn = 10000;
-    private bool _isTv = true;
-    private bool _isRadio = false;
-    private bool _freeToAir = true;
+    [DataMember]
+    private string _channelName;
+
+    [DataMember]
+    private string _providerName;
+
+    [DataMember]
+    private long _channelFrequency;
+
+    [DataMember]
+    private int _networkId;
+
+    [DataMember]
+    private int _serviceId;
+
+    [DataMember]
+    private int _transportId;
+
+    [DataMember]
+    private int _pmtPid;
+
+    [DataMember]
+    private int _lcn;
+
+    [DataMember]
+    private MediaTypeEnum _mediaType;
+
+    [DataMember]
+    private bool _freeToAir;
 
     #endregion
 
-    #region constructors
+    /// <summary>
+    /// ctor
+    /// </summary>
+    public DVBBaseChannel(DVBBaseChannel chan)
+    {
+      _channelName = chan._channelName;
+      _providerName = chan._providerName;
+      _channelFrequency = chan._channelFrequency;
+      _networkId = chan._networkId;
+      _serviceId = chan._serviceId;
+      _transportId = chan._transportId;
+      _pmtPid = chan._pmtPid;
+      _lcn = chan._lcn;
+      _mediaType= chan._mediaType;      
+      _freeToAir = chan._freeToAir;
+    }
 
     ///<summary>
-    /// Base <see cref="DVBBaseChannel"/> constructor.
+    /// Base constructor
     ///</summary>
     public DVBBaseChannel()
     {
-      _channelName = String.Empty;
-      _providerName = String.Empty;
-      _channelFrequency = -1;
-      _networkId = -1;
-      _transportId = -1;
-      _serviceId = -1;
+      _channelName = "";
+      _providerName = "";
       _pmtPid = -1;
+      _networkId = -1;
+      _serviceId = -1;
+      _transportId = -1;
       _lcn = 10000;
-      _isTv = true;
-      _isRadio = false;
-      _freeToAir = true;
     }
-
-    /// <summary>
-    /// Initialise a new instance of a <see cref="DVBBaseChannel"/> derived instance using an
-    /// existing instance.
-    /// </summary>
-    /// <param name="channel">The existing channel instance.</param>
-    public DVBBaseChannel(DVBBaseChannel channel)
-    {
-      _channelName = channel.Name;
-      _providerName = channel.Provider;
-      _channelFrequency = channel.Frequency;
-      _networkId = channel.NetworkId;
-      _transportId = channel.TransportId;
-      _serviceId = channel.ServiceId;
-      _pmtPid = channel.PmtPid;
-      _lcn = channel.LogicalChannelNumber;
-      _isTv = channel.IsTv;
-      _isRadio = channel.IsRadio;
-      _freeToAir = channel.FreeToAir;
-    }
-
-    #endregion
 
     #region properties
 
     /// <summary>
-    /// Get/set the channel's name.
-    /// </summary>
-    public string Name
-    {
-      get { return _channelName; }
-      set { _channelName = value; }
-    }
-
-    /// <summary>
-    /// Get/set the channel provider's name.
-    /// </summary>
-    public string Provider
-    {
-      get { return _providerName; }
-      set { _providerName = value; }
-    }
-
-    /// <summary>
-    /// Get/set the carrier frequency for the channel. The frequency unit is kHz.
-    /// </summary>
-    public long Frequency
-    {
-      get { return _channelFrequency; }
-      set { _channelFrequency = value; }
-    }
-
-    /// <summary>
-    /// Get/set the network ID for the channel.
-    /// </summary>
-    public int NetworkId
-    {
-      get { return _networkId; }
-      set { _networkId = value; }
-    }
-
-    /// <summary>
-    /// Get/set the transport stream ID for the channel.
-    /// </summary>
-    public int TransportId
-    {
-      get { return _transportId; }
-      set { _transportId = value; }
-    }
-
-    /// <summary>
-    /// Get/set the service ID for the channel.
-    /// </summary>
-    public int ServiceId
-    {
-      get { return _serviceId; }
-      set { _serviceId = value; }
-    }
-
-    /// <summary>
-    /// Get/set the PID of the program map table for this channel
-    /// </summary>
-    public int PmtPid
-    {
-      get { return _pmtPid; }
-      set { _pmtPid = value; }
-    }
-
-    /// <summary>
-    /// Get/set the logical channel number for the channel.
+    /// gets/set the LCN of the channel
     /// </summary>
     public int LogicalChannelNumber
     {
@@ -162,25 +113,70 @@ namespace TvLibrary.Channels
     }
 
     /// <summary>
-    /// Get/set whether the channel is a television channel.
+    /// gets/set the pid of the Program management table for the channel
     /// </summary>
-    public bool IsTv
+    public int PmtPid
     {
-      get { return _isTv; }
-      set { _isTv = value; }
+      get { return _pmtPid; }
+      set { _pmtPid = value; }
     }
 
     /// <summary>
-    /// Get/set whether the channel is a radio channel.
+    /// gets/sets the network id of the channel
     /// </summary>
-    public bool IsRadio
+    public int NetworkId
     {
-      get { return _isRadio; }
-      set { _isRadio = value; }
+      get { return _networkId; }
+      set { _networkId = value; }
     }
 
     /// <summary>
-    /// Get/set whether the channel is a free-to-air or encrypted channel.
+    /// gets/sets the service id of the channel
+    /// </summary>
+    public int ServiceId
+    {
+      get { return _serviceId; }
+      set { _serviceId = value; }
+    }
+
+    /// <summary>
+    /// gets/sets the transport id of the channel
+    /// </summary>
+    public int TransportId
+    {
+      get { return _transportId; }
+      set { _transportId = value; }
+    }
+
+    /// <summary>
+    /// gets/sets the channel name
+    /// </summary>
+    public string Name
+    {
+      get { return _channelName; }
+      set { _channelName = value; }
+    }
+
+    /// <summary>
+    /// gets/sets the channel provider name
+    /// </summary>
+    public string Provider
+    {
+      get { return _providerName; }
+      set { _providerName = value; }
+    }
+
+    /// <summary>
+    /// gets/sets the carrier frequency of the channel
+    /// </summary>
+    public long Frequency
+    {
+      get { return _channelFrequency; }
+      set { _channelFrequency = value; }
+    }    
+
+    /// <summary>
+    /// boolean indicating if this is a FreeToAir channel or an encrypted channel
     /// </summary>
     public bool FreeToAir
     {
@@ -188,133 +184,108 @@ namespace TvLibrary.Channels
       set { _freeToAir = value; }
     }
 
+    public MediaTypeEnum MediaType
+    {
+      get { return _mediaType; }
+      set { _mediaType = value; }
+    }
+
     #endregion
 
-    #region object overrides
-
     /// <summary>
-    /// Get a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
+    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </returns>
     public override string ToString()
     {
-      string line = IsRadio ? "radio:" : "tv:";
+      string line = MediaType.ToString();
       line += String.Format("{0} {1} Freq:{2} ONID:{3} TSID:{4} SID:{5} PMT:0x{6:X} FTA:{7} LCN:{8}",
                             Provider, Name, Frequency, NetworkId, TransportId, ServiceId, PmtPid, FreeToAir,
                             LogicalChannelNumber);
       return line;
     }
 
+
     /// <summary>
-    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+    /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
     /// <returns>
-    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
+    /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
     /// </returns>
     public override bool Equals(object obj)
     {
-      DVBBaseChannel ch = obj as DVBBaseChannel;
-      if (ch == null)
+      if ((obj as DVBBaseChannel) == null)
       {
         return false;
       }
-
-      if (!ch.Name.Equals(_channelName))
+      var ch = obj as DVBBaseChannel;
+      if (ch.FreeToAir != FreeToAir)
       {
         return false;
       }
-      if (!ch.Provider.Equals(_providerName))
+      if (ch.Frequency != Frequency)
       {
         return false;
       }
-      if (ch.Frequency != _channelFrequency)
+      if (ch.MediaType != MediaType)
+      {
+        return false;
+      }      
+      if (ch.Name != Name)
       {
         return false;
       }
-      if (ch.NetworkId != _networkId)
+      if (ch.NetworkId != NetworkId)
       {
         return false;
       }
-      if (ch.TransportId != _transportId)
+      if (ch.PmtPid != PmtPid)
       {
         return false;
       }
-      if (ch.ServiceId != _serviceId)
+      if (ch.Provider != Provider)
       {
         return false;
       }
-      if (ch.PmtPid != _pmtPid)
+      if (ch.ServiceId != ServiceId)
       {
         return false;
       }
-      if (ch.LogicalChannelNumber != _lcn)
+      if (ch.TransportId != TransportId)
       {
         return false;
       }
-      if (ch.IsTv != _isTv)
+      if (ch.LogicalChannelNumber != LogicalChannelNumber)
       {
         return false;
       }
-      if (ch.IsRadio != _isRadio)
-      {
-        return false;
-      }
-      if (ch.FreeToAir != _freeToAir)
-      {
-        return false;
-      }
-
       return true;
     }
 
     /// <summary>
     /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
     /// </summary>
-    /// <returns>a hash code for the current <see cref="T:System.Object"></see></returns>
+    /// <returns>
+    /// A hash code for the current <see cref="T:System.Object"></see>.
+    /// </returns>
     public override int GetHashCode()
     {
-      return base.GetHashCode() ^ _channelName.GetHashCode() ^ _providerName.GetHashCode() ^
-            _channelFrequency.GetHashCode() ^ _networkId.GetHashCode() ^ _transportId.GetHashCode() ^
-            _serviceId.GetHashCode() ^ _pmtPid.GetHashCode() ^ _lcn.GetHashCode() ^ _isTv.GetHashCode() ^
-            _isRadio.GetHashCode() ^ _freeToAir.GetHashCode();
+      return base.GetHashCode() ^ _channelName.GetHashCode() ^ _providerName.GetHashCode() ^ _pmtPid.GetHashCode() ^
+             _networkId.GetHashCode() ^ _serviceId.GetHashCode() ^ _transportId.GetHashCode() ^
+             _lcn.GetHashCode();
     }
 
-    #endregion
-
-    #region ICloneable member
-
     /// <summary>
-    /// Clone the channel instance.
+    /// Checks if the given channel and this instance are on the different transponder
     /// </summary>
-    /// <returns>a shallow clone of the channel instance</returns>
-    public virtual object Clone()
-    {
-      return this.MemberwiseClone();
-    }
-
-    #endregion
-
-    /// <summary>
-    /// Check if the given channel and this instance are on different transponders.
-    /// </summary>
-    /// <param name="channel">The channel to check.</param>
-    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
+    /// <param name="channel">Channel to check</param>
+    /// <returns>true, if the channels are on the same transponder</returns>
     public virtual bool IsDifferentTransponder(IChannel channel)
     {
       return true;
-    }
-
-    /// <summary>
-    /// Get a channel instance with properties set to enable tuning of this channel.
-    /// </summary>
-    /// <returns>a channel instance with parameters adjusted as necessary</returns>
-    public virtual IChannel GetTuningChannel()
-    {
-      // No adjustments required.
-      return (IChannel)this.Clone();
     }
   }
 }

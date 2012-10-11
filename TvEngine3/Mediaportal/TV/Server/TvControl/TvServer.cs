@@ -21,7 +21,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using TvLibrary.Interfaces;
+using Mediaportal.TV.Server.TVControl;
 
 namespace TvControl
 {

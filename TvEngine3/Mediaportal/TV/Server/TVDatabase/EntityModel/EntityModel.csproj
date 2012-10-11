@@ -73,11 +73,6 @@
     <Compile Include="Interfaces\ICardRepository.cs" />
     <Compile Include="Interfaces\IRecordingRepository.cs" />
     <Compile Include="Interfaces\IScheduleRepository.cs" />
-    <Compile Include="Model.Designer.cs">
-      <DependentUpon>Model.edmx</DependentUpon>
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-    </Compile>
     <Compile Include="ObjContext\EntityFrameworkExtension.cs" />
     <Compile Include="ObjContext\IObjectContextStorage.cs" />
     <Compile Include="ObjContext\ObjectContextBuilder.cs" />
@@ -118,7 +113,6 @@
     </None>
     <EntityDeploy Include="Model.edmx">
       <Generator>EntityModelCodeGenerator</Generator>
-      <LastGenOutput>Model.Designer.cs</LastGenOutput>
     </EntityDeploy>
     <EmbeddedResource Include="Model.MSSQL.ssdl" />
     <EmbeddedResource Include="Model.MySQL.ssdl">

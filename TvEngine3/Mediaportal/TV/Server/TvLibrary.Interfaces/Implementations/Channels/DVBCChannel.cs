@@ -75,13 +75,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
   [DataContract]  
   public class DVBCChannel : DVBBaseChannel
   {
-    #region variables
-
-    private int _symbolRate = -1;
-    private ModulationType _modulation = ModulationType.Mod64Qam;
-
-    #endregion
-
     #region constructors
 
     /// <summary>
@@ -122,8 +115,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     {
       TuningInfo = tuningParameters;
     }
-
-    #endregion
 
     #region properties
 

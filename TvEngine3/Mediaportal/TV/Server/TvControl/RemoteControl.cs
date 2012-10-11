@@ -30,6 +30,7 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.Serialization.Formatters;
 using System.Threading;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.CiMenu;
 using TvLibrary.Interfaces;
 using TvLibrary.Log;
 using ThreadState = System.Threading.ThreadState;

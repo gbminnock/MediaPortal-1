@@ -20,6 +20,7 @@
 
 using System;
 using DirectShowLib;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 
 namespace TvLibrary.Interfaces.Device
 {

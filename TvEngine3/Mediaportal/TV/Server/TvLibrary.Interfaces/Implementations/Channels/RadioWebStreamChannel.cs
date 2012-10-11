@@ -70,7 +70,15 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       get { return _url; }
       set { _url = value; }
     }
-   
+
+    /// <summary>
+    /// Get/set whether the channel is a free-to-air or encrypted channel.
+    /// </summary>
+    public bool FreeToAir
+    {
+      get { return true; }
+      set { }
+    }
 
     #endregion
 

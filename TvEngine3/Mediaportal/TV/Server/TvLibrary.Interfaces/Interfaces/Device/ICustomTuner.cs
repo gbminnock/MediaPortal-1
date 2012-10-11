@@ -18,6 +18,8 @@
 
 #endregion
 
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+
 namespace TvLibrary.Interfaces.Device
 {
   /// <summary>

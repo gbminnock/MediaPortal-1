@@ -18,8 +18,6 @@
 
 #endregion
 
-using TvLibrary.Channels;
-
 namespace TvLibrary.Interfaces.Device
 {
   /// <summary>

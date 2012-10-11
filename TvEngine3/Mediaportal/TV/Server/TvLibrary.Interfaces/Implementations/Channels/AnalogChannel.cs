@@ -2,24 +2,23 @@
 
 // Copyright (C) 2005-2011 Team MediaPortal
 // http://www.team-mediaportal.com
-// 
+//
 // MediaPortal is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // MediaPortal is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with MediaPortal. If not, see <http://www.gnu.org/licenses/>.
 
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 using DirectShowLib;
 using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Countries;
@@ -30,7 +29,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
   /// <summary>
   /// class holding all tuning details for analog channels
   /// </summary>
-  [DataContract]  
+  [Serializable]
   public class AnalogChannel : IChannel
   {
     #region enums
@@ -161,32 +160,17 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 
     #region variables
 
-
-    [DataMember]
-    private string _channelName;
-
-    [DataMember]
-    private long _channelFrequency;
-
-    [DataMember]
-    private int _channelNumber;
-
-    [DataMember]
+    private string _channelName = String.Empty;
+    private long _channelFrequency = -1; // Used for FM radio; analog TV is usually tuned by channel number.
+    private int _channelNumber = -1;
     private Country _country;
-
-    [DataMember]
-    private TunerInputType _tunerSource;
-
-    [DataMember]
-    private VideoInputType _videoInputType;
-
-    [DataMember]
-    private AudioInputType _audioInputType;
-
-    [DataMember]
-    private bool _vcrSginal;
-
-    [DataMember]
+    private TunerInputType _tunerSource = TunerInputType.Cable;
+    private VideoInputType _videoInputType = VideoInputType.Tuner;
+    private AudioInputType _audioInputType = AudioInputType.Tuner;
+    private bool _isVcrSignal;
+    private bool _isTv = true;
+    private bool _isRadio = false;
+    private bool _freeToAir = true;
     private MediaTypeEnum _mediaType;
 
     #endregion
@@ -202,13 +186,13 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       _channelFrequency = -1;
       _channelNumber = 4;
       CountryCollection collection = new CountryCollection();
-      _country = collection.GetTunerCountryFromID(31);  // The Netherlands.
+      _country = collection.GetTunerCountryFromID(31); // The Netherlands.
       _tunerSource = TunerInputType.Cable;
       _videoInputType = VideoInputType.Tuner;
       _audioInputType = AudioInputType.Tuner;
       _isVcrSignal = false;
       _isTv = true;
-      _mediaType = MediaTypeEnum.TV;
+      _isRadio = false;
       _freeToAir = true;
     }
 
@@ -302,7 +286,23 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       set { _audioInputType = value; }
     }
 
-    
+    /// <summary>
+    /// Get/set whether the channel is sourced from a VCR.
+    /// </summary>
+    public bool IsVcrSignal
+    {
+      get { return _isVcrSignal; }
+      set { _isVcrSignal = value; }
+    }
+
+    /// <summary>
+    /// Get/set whether the channel is a television channel.
+    /// </summary>
+    public bool IsTv
+    {
+      get { return _isTv; }
+      set { _isTv = value; }
+    }
 
     /// <summary>
     /// Get/set whether the channel is a radio channel.
@@ -322,6 +322,12 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       set { _freeToAir = value; }
     }
 
+    public MediaTypeEnum MediaType
+    {
+      get { return _mediaType; }
+      set { _mediaType = value; }
+    }
+
     #endregion
 
     #region object overrides
@@ -334,7 +340,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     /// </returns>
     public override string ToString()
     {
-      string line = MediaType.ToString();
+      string line = IsRadio ? "radio:" : "tv:";
       line += String.Format("{0} Freq:{1} Channel:{2} Country:{3} Tuner:{4} Video:{5} Audio:{6}",
                             Name, Frequency, ChannelNumber, Country.Name, TunerSource, VideoSource, AudioSource);
       return line;
@@ -385,10 +391,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return false;
       }
-      if (ch.MediaType != MediaType)
+      if (ch.IsVcrSignal != _isVcrSignal)
       {
         return false;
-      }      
+      }
+      if (ch.IsRadio != _isRadio)
+      {
+        return false;
+      }
       if (ch.IsTv != _isTv)
       {
         return false;
@@ -410,7 +420,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     public override int GetHashCode()
     {
       return base.GetHashCode() ^ _channelName.GetHashCode() ^ _channelFrequency.GetHashCode() ^
-             _channelNumber.GetHashCode() ^ _country.GetHashCode() ^ _mediaType.GetHashCode() ^
+             _channelNumber.GetHashCode() ^ _country.GetHashCode() ^ _isRadio.GetHashCode() ^
              _tunerSource.GetHashCode() ^ _videoInputType.GetHashCode() ^ _audioInputType.GetHashCode() ^
              _isVcrSignal.GetHashCode();
     }
@@ -442,7 +452,8 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return true;
       }
-      return analogChannel.MediaType != MediaType ||             
+      return analogChannel.IsTv != IsTv ||
+             analogChannel.IsRadio != IsRadio ||
              analogChannel.Country.Id != Country.Id ||
              analogChannel.VideoSource != VideoSource ||
              analogChannel.TunerSource != TunerSource ||
@@ -457,13 +468,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     public IChannel GetTuningChannel()
     {
       // No adjustments required.
-      return (IChannel)this.Clone();
-    }
-
-    public MediaTypeEnum MediaType
-    {
-      get { return _mediaType; }
-      set { _mediaType = value; }
+      return (IChannel) this.Clone();
     }
   }
 }

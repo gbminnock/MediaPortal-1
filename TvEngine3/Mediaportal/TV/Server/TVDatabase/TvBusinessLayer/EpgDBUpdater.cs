@@ -2,17 +2,17 @@
 
 // Copyright (C) 2005-2011 Team MediaPortal
 // http://www.team-mediaportal.com
-// 
+//
 // MediaPortal is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 2 of the License, or
 // (at your option) any later version.
-// 
+//
 // MediaPortal is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with MediaPortal. If not, see <http://www.gnu.org/licenses/>.
 
@@ -102,8 +102,8 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
     #region Public members
 
     public void ReloadConfig()
-    {      
-      
+    {
+
       _titleTemplate = SettingsManagement.GetSetting("epgTitleTemplate", "%TITLE%").Value;
       _descriptionTemplate = SettingsManagement.GetSetting("epgDescriptionTemplate", "%DESCRIPTION%").Value;
       _epgLanguages = SettingsManagement.GetSetting("epgLanguages").Value;
@@ -213,7 +213,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
               for (int idx = 1; idx < epgs.Count; idx++)
               {
                 try
-                {                  
+                {
                   ProgramManagement.DeleteProgram(epgs[idx].IdProgram);
                   Log.Epg("- Deleted the epg entry {0} ({1} - {2})", epgs[idx].Title, epgs[idx].StartTime,
                           epgs[idx].EndTime);
@@ -236,7 +236,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       }
       dbChannel.LastGrabTime = DateTime.Now;
       dbChannel.EpgHasGaps = hasGaps;
-      ChannelManagement.SaveChannel(dbChannel);      
+      ChannelManagement.SaveChannel(dbChannel);
 
       //_layer.StartResetProgramStatesThread(System.Threading.ThreadPriority.Lowest);
 
@@ -250,7 +250,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
 
     private Channel IsInsertAllowed(EpgChannel epgChannel)
     {
-      DVBBaseChannel dvbChannel = (DVBBaseChannel)epgChannel.Channel;
+      DVBBaseChannel dvbChannel = (DVBBaseChannel) epgChannel.Channel;
       //are there any epg infos for this channel?
       if (epgChannel.Programs.Count == 0)
       {
@@ -260,7 +260,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
       }
       //do we know a channel with these tuning details?
       Channel dbChannel = null;
-      TuningDetail tuningDetail = ChannelManagement.GetTuningDetail(dvbChannel);      
+      TuningDetail tuningDetail = ChannelManagement.GetTuningDetail(dvbChannel);
       if (tuningDetail != null)
       {
         dbChannel = tuningDetail.Channel;
@@ -271,14 +271,14 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         Log.Epg("{0}: no channel found for networkid:0x{1:X} transportid:0x{2:X} serviceid:0x{3:X}", _grabberName,
                 dvbChannel.NetworkId, dvbChannel.TransportId, dvbChannel.ServiceId);
         /*foreach (EpgProgram ei in epgChannel.Programs)
-        {
-          string title = "";
-          if (ei.Text.Count > 0)
-          {
-            title = ei.Text[0].Title;
-          }
-          Log.Epg("                   -> {0}-{1}  {2}", ei.startTime, ei.endTime, title);
-        }*/
+{
+string title = "";
+if (ei.Text.Count > 0)
+{
+title = ei.Text[0].Title;
+}
+Log.Epg(" -> {0}-{1} {2}", ei.startTime, ei.endTime, title);
+}*/
         return null;
       }
       //should we store epg for this channel?
@@ -470,7 +470,7 @@ namespace Mediaportal.TV.Server.TVDatabase.TVBusinessLayer
         prgBLL.Entity.OriginalAirDate = SqlDateTime.MinValue.Value; // TODO: /!\ add implementation
         prgBLL.ClearRecordPendingState();
         ProgramManagement.SaveProgram(prgBLL.Entity);
-      }      
+      }
     }
 
     #endregion

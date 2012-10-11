@@ -22,7 +22,7 @@ using System;
 using System.ComponentModel;
 using System.Windows.Forms;
 using DirectShowLib.BDA;
-using TvDatabase;
+using Mediaportal.TV.Server.TVDatabase.Entities;
 
 namespace SetupControls
 {

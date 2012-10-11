@@ -20,9 +20,13 @@
 
 using System;
 using System.Collections.Generic;
+using Mediaportal.TV.Server.TVControl;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.CiMenu;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVService.Interfaces.Enums;
 using TvLibrary.Interfaces;
 using TvLibrary.Interfaces.Device;
-using TvLibrary.Streaming;
 
 namespace TvControl
 {

@@ -33,6 +33,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 using Mediaportal.TV.Server.TVService.Interfaces;
 using Mediaportal.TV.Server.TVService.Interfaces.Enums;
 using Mediaportal.TV.Server.TVService.Interfaces.Services;
+using TvLibrary.Interfaces;
 
 namespace Mediaportal.TV.Server.TVControl
 {

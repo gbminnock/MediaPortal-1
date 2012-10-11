@@ -31,43 +31,12 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
-using DirectShowLib;
 using DirectShowLib.BDA;
-using Gentle.Common;
-using Gentle.Framework;
-using Mediaportal.TV.Server.TVDatabase.Entities;
-using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
-using Mediaportal.TV.Server.TVDatabase.Gentle;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Countries;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using MySql.Data.MySqlClient;
 using TvDatabase;
-using TvLibrary;
-using TvLibrary.Channels;
-using TvLibrary.Implementations;
-using TvLibrary.Interfaces;
 using TvLibrary.Interfaces.Device;
-using TvLibrary.Log;
-
-using Card = Mediaportal.TV.Server.TVDatabase.Gentle.Card;
-using Channel = Mediaportal.TV.Server.TVDatabase.Gentle.Channel;
-using ChannelGroup = Mediaportal.TV.Server.TVDatabase.Gentle.ChannelGroup;
-using ChannelLinkageMap = Mediaportal.TV.Server.TVDatabase.Gentle.ChannelLinkageMap;
-using ChannelMap = Mediaportal.TV.Server.TVDatabase.Gentle.ChannelMap;
-using DbNetworkProvider = Mediaportal.TV.Server.TVDatabase.Gentle.DbNetworkProvider;
-using GroupMap = Mediaportal.TV.Server.TVDatabase.Gentle.GroupMap;
-using Program = Mediaportal.TV.Server.TVDatabase.Gentle.Program;
-using Recording = Mediaportal.TV.Server.TVDatabase.Gentle.Recording;
-using Schedule = Mediaportal.TV.Server.TVDatabase.Gentle.Schedule;
-using ScheduleRecordingType = Mediaportal.TV.Server.TVDatabase.Gentle.ScheduleRecordingType;
-using Setting = Mediaportal.TV.Server.TVDatabase.Gentle.Setting;
-using SoftwareEncoder = Mediaportal.TV.Server.TVDatabase.Gentle.SoftwareEncoder;
-using StatementType = Gentle.Framework.StatementType;
-using ThreadState = System.Threading.ThreadState;
-using TuningDetail = Mediaportal.TV.Server.TVDatabase.Gentle.TuningDetail;
-using WeekEndTool = Mediaportal.TV.Server.TVDatabase.Gentle.WeekEndTool;
 
 #endregion
 

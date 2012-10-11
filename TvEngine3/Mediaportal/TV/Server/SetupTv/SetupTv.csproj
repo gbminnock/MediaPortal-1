@@ -64,15 +64,11 @@
     <Compile Include="Dialogs\FormEditSchedule.designer.cs">
       <DependentUpon>FormEditSchedule.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormAnalogTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormAnalogTuningDetail.cs" />
     <Compile Include="Dialogs\FormAnalogTuningDetail.Designer.cs">
       <DependentUpon>FormAnalogTuningDetail.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormATSCTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormATSCTuningDetail.cs" />
     <Compile Include="Dialogs\FormATSCTuningDetail.Designer.cs">
       <DependentUpon>FormATSCTuningDetail.cs</DependentUpon>
     </Compile>
@@ -82,27 +78,19 @@
     <Compile Include="Dialogs\FormChooseTuningDetailType.Designer.cs">
       <DependentUpon>FormChooseTuningDetailType.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormDVBCTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormDVBCTuningDetail.cs" />
     <Compile Include="Dialogs\FormDVBCTuningDetail.Designer.cs">
       <DependentUpon>FormDVBCTuningDetail.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormDVBIPTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormDVBIPTuningDetail.cs" />
     <Compile Include="Dialogs\FormDVBIPTuningDetail.Designer.cs">
       <DependentUpon>FormDVBIPTuningDetail.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormDVBSTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormDVBSTuningDetail.cs" />
     <Compile Include="Dialogs\FormDVBSTuningDetail.Designer.cs">
       <DependentUpon>FormDVBSTuningDetail.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormDVBTTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormDVBTTuningDetail.cs" />
     <Compile Include="Dialogs\FormDVBTTuningDetail.Designer.cs">
       <DependentUpon>FormDVBTTuningDetail.cs</DependentUpon>
     </Compile>
@@ -136,9 +124,7 @@
     <Compile Include="Dialogs\FormSelectListChannel.Designer.cs">
       <DependentUpon>FormSelectListChannel.cs</DependentUpon>
     </Compile>
-    <Compile Include="Dialogs\FormWebStreamTuningDetail.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Dialogs\FormWebStreamTuningDetail.cs" />
     <Compile Include="Dialogs\FormWebStreamTuningDetail.Designer.cs">
       <DependentUpon>FormWebStreamTuningDetail.cs</DependentUpon>
     </Compile>
@@ -182,9 +168,7 @@
     <Compile Include="Sections\CIMenu\CI_Menu_Dialog.designer.cs">
       <DependentUpon>CI_Menu_Dialog.cs</DependentUpon>
     </Compile>
-    <Compile Include="Sections\Epg.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Sections\Epg.cs" />
     <Compile Include="Sections\Epg.Designer.cs">
       <DependentUpon>Epg.cs</DependentUpon>
     </Compile>
@@ -385,9 +369,7 @@
     <Compile Include="Sections\TvRecording.Designer.cs">
       <DependentUpon>TvRecording.cs</DependentUpon>
     </Compile>
-    <Compile Include="Sections\TestService.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Sections\TestService.cs" />
     <Compile Include="Sections\TestService.Designer.cs">
       <DependentUpon>TestService.cs</DependentUpon>
     </Compile>
@@ -415,9 +397,7 @@
     <Compile Include="Sections\Channels.Designer.cs">
       <DependentUpon>Channels.cs</DependentUpon>
     </Compile>
-    <Compile Include="Sections\TvSchedules.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Sections\TvSchedules.cs" />
     <Compile Include="Sections\TvSchedules.Designer.cs">
       <DependentUpon>TvSchedules.cs</DependentUpon>
     </Compile>

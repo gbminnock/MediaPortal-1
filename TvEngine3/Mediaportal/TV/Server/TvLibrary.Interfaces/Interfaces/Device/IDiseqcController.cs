@@ -19,7 +19,7 @@
 #endregion
 
 using System;
-using TvLibrary.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 
 namespace TvLibrary.Interfaces.Device
 {

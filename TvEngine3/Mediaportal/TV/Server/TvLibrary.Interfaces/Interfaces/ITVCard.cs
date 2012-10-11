@@ -21,6 +21,7 @@
 using System.Collections.Generic;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.ChannelLinkage;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Epg;
+using TvLibrary.Interfaces;
 using TvLibrary.Interfaces.Device;
 
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
@@ -330,8 +331,5 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces
     ITvSubChannel[] SubChannels { get; }
 
     #endregion
-
-    void CancelTune(int subChannel);    
-    event OnNewSubChannelDelegate OnNewSubChannelEvent;    
   }
 }

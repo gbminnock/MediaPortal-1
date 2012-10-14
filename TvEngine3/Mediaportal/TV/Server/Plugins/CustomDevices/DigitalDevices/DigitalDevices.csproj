@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DigitalDevices</RootNamespace>
     <AssemblyName>DigitalDevices</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -48,9 +48,7 @@
   <ItemGroup>
     <Compile Include="DigitalDevices.cs" />
     <Compile Include="DigitalDevicesCiSlots.cs" />
-    <Compile Include="DigitalDevicesConfig.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="DigitalDevicesConfig.cs" />
     <Compile Include="DigitalDevicesConfig.Designer.cs">
       <DependentUpon>DigitalDevicesConfig.cs</DependentUpon>
     </Compile>

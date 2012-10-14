@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>SmarDtvUsbCi</RootNamespace>
     <AssemblyName>SmarDtvUsbCi</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -48,9 +48,7 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SmarDtvUsbCi.cs" />
-    <Compile Include="SmarDtvUsbCiConfig.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="SmarDtvUsbCiConfig.cs" />
     <Compile Include="SmarDtvUsbCiConfig.Designer.cs">
       <DependentUpon>SmarDtvUsbCiConfig.cs</DependentUpon>
     </Compile>

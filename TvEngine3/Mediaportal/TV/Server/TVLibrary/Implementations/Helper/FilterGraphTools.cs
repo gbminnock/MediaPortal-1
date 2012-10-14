@@ -861,14 +861,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
         {
           FilterInfo info;
           filter.QueryFilterInfo(out info);
-          Log.Write("Remove filter from graph: {0}", info.achName);
+          Log.WriteFile("Remove filter from graph: {0}", info.achName);
           graphBuilder.RemoveFilter(filter);
           while (Release.ComObject(filter) > 0) ;
         }
       }
       catch (Exception)
       {
-        Log.Write("Remove filter error!");
+        Log.WriteFile("Remove filter error!");
         return;
       }
       finally
@@ -1102,7 +1102,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
         retval = true;
         Release.ComObject(o);
       }
-      catch {}
+      catch { }
       return retval;
     }
 
@@ -1117,7 +1117,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     [SecurityPermission(SecurityAction.LinkDemand, UnmanagedCode = true)]
     public static bool IsVMR9Present()
     {
-      return IsThisComObjectInstalled(typeof (VideoMixingRenderer9).GUID);
+      return IsThisComObjectInstalled(typeof(VideoMixingRenderer9).GUID);
     }
 
     /// <summary>
@@ -1131,7 +1131,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     [SecurityPermission(SecurityAction.LinkDemand, UnmanagedCode = true)]
     public static bool IsVMR7Present()
     {
-      return IsThisComObjectInstalled(typeof (VideoMixingRenderer).GUID);
+      return IsThisComObjectInstalled(typeof(VideoMixingRenderer).GUID);
     }
 
     /// <summary>
@@ -1260,7 +1260,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     /// <returns></returns>
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IPin pinSource, IBaseFilter destinationFilter)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       Log.WriteFile("analog:  PinSource:{0}", LogPinInfo(pinSource));
       for (int i = 0; i <= 10; ++i)
       {
@@ -1302,7 +1302,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IPin pinSource, IBaseFilter destinationFilter,
                                      out int destinationPinIndex)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       Log.WriteFile("analog:  PinSource:{0}", LogPinInfo(pinSource));
       destinationPinIndex = -1;
       for (int i = 0; i <= 10; ++i)
@@ -1344,7 +1344,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     /// <returns></returns>
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IBaseFilter sourceFilter, IPin pinDestination)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       Log.WriteFile("analog:  PinDest:{0}", LogPinInfo(pinDestination));
       for (int i = 0; i <= 10; ++i)
       {
@@ -1375,7 +1375,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IBaseFilter sourceFilter, IPin pinDestination,
                                      out int sourcePinIndex)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       Log.WriteFile("analog:  PinDest:{0}", LogPinInfo(pinDestination));
       sourcePinIndex = -1;
       for (int i = 0; i <= 10; ++i)
@@ -1406,7 +1406,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     /// <returns></returns>
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IBaseFilter sourceFilter, IBaseFilter destinationFilter)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       IPin pinIn = DsFindPin.ByDirection(destinationFilter, PinDirection.Input, 0);
       Log.WriteFile("analog:  PinDest:{0}", LogPinInfo(pinIn));
       for (int i = 0; i <= 10; ++i)
@@ -1438,7 +1438,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     public static bool ConnectFilter(IGraphBuilder graphBuilder, IBaseFilter sourceFilter, IBaseFilter destinationFilter,
                                      string deviceName)
     {
-      //Log.Log.WriteFile("analog: ConnectFilter()");
+      //Log.WriteFile("analog: ConnectFilter()");
       IPin pinIn = DsFindPin.ByDirection(destinationFilter, PinDirection.Input, 0);
       Log.WriteFile("analog:  PinDest:{0}", LogPinInfo(pinIn));
       for (int i = 0; i <= 10; ++i)
@@ -1698,7 +1698,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     {
       AMMediaType mediaAac = new AMMediaType();
       mediaAac.majorType = MediaType.Audio;
-      mediaAac.subType = MediaSubType.AAC;
+      mediaAac.subType = MpMediaSubType.AAC;
       mediaAac.formatType = FormatType.WaveEx;
       mediaAac.unkPtr = IntPtr.Zero;
       mediaAac.sampleSize = 1;
@@ -1718,7 +1718,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     {
       AMMediaType mediaLATMAAC = new AMMediaType();
       mediaLATMAAC.majorType = MediaType.Audio;
-      mediaLATMAAC.subType = MediaSubType.LATMAAC;
+      mediaLATMAAC.subType = MpMediaSubType.LATMAAC;
       mediaLATMAAC.formatType = FormatType.WaveEx;
       mediaLATMAAC.unkPtr = IntPtr.Zero;
       mediaLATMAAC.sampleSize = 1;
@@ -1738,7 +1738,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
     {
       AMMediaType mediaLPCM = new AMMediaType();
       mediaLPCM.majorType = MediaType.Audio;
-      mediaLPCM.subType = MediaSubType.DVD_LPCM_AUDIO;
+      mediaLPCM.subType = MpMediaSubType.DVD_LPCM_AUDIO;
       mediaLPCM.formatType = FormatType.WaveEx;
       mediaLPCM.unkPtr = IntPtr.Zero;
       mediaLPCM.sampleSize = 1;
@@ -1814,9 +1814,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
 #if USING_NET11
 			[Out] out UCOMIStream ppstm
 #else
-      [Out] out IStream ppstm
+ [Out] out IStream ppstm
 #endif
-      );
+);
 
     [PreserveSig]
     int OpenStream(
@@ -1827,9 +1827,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
 #if USING_NET11
 			[Out] out UCOMIStream ppstm
 #else
-      [Out] out IStream ppstm
+ [Out] out IStream ppstm
 #endif
-      );
+);
 
     [PreserveSig]
     int CreateStorage(
@@ -1897,11 +1897,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
 			[In] FILETIME patime,
 			[In] FILETIME pmtime
 #else
-      [In] System.Runtime.InteropServices.ComTypes.FILETIME pctime,
-      [In] System.Runtime.InteropServices.ComTypes.FILETIME patime,
-      [In] System.Runtime.InteropServices.ComTypes.FILETIME pmtime
+ [In] System.Runtime.InteropServices.ComTypes.FILETIME pctime,
+ [In] System.Runtime.InteropServices.ComTypes.FILETIME patime,
+ [In] System.Runtime.InteropServices.ComTypes.FILETIME pmtime
 #endif
-      );
+);
 
     [PreserveSig]
     int SetClass([In, MarshalAs(UnmanagedType.LPStruct)] Guid clsid);
@@ -1917,10 +1917,10 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Helper
 #if USING_NET11
 			[Out] out STATSTG pStatStg,
 #else
-      [Out] out System.Runtime.InteropServices.ComTypes.STATSTG pStatStg,
+[Out] out System.Runtime.InteropServices.ComTypes.STATSTG pStatStg,
 #endif
-      [In] int grfStatFlag
-      );
+ [In] int grfStatFlag
+ );
   }
 
   internal static class NativeMethods

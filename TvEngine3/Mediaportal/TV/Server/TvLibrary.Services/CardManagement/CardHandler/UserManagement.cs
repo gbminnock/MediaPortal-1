@@ -151,14 +151,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
 
       if (_cardHandler.IsIdle)
       {
-        if (_cardHandler.Card.SupportsPauseGraph)
-        {
-          _cardHandler.Card.PauseGraph();
-        }
-        else
-        {
-          _cardHandler.Card.StopGraph();
-        }
+        _cardHandler.Card.Stop();
       }
     }
 

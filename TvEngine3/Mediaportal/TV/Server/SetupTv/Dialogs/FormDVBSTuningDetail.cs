@@ -19,12 +19,15 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Windows.Forms;
 using DirectShowLib.BDA;
+using Mediaportal.TV.Server.SetupControls;
+using Mediaportal.TV.Server.TVDatabase.Entities;
 
 namespace Mediaportal.TV.Server.SetupTV.Dialogs
 {
-  public partial class FormDVBSTuningDetail : SetupControls.FormTuningDetailCommon
+  public partial class FormDVBSTuningDetail : FormTuningDetailCommon
   {
     public FormDVBSTuningDetail()
     {
@@ -49,7 +52,17 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
         comboBoxInnerFecRate.SelectedIndex = TuningDetail.InnerFecRate + 1;
         comboBoxPilot.SelectedIndex = TuningDetail.Pilot + 1;
         comboBoxRollOff.SelectedIndex = TuningDetail.RollOff + 1;
-        comboBoxDisEqc.SelectedIndex = TuningDetail.DiSEqC;
+        comboBoxDiseqc.SelectedIndex = TuningDetail.DiSEqC;
+        IEnumerator en = comboBoxLnbType.Items.GetEnumerator();
+        while (en.MoveNext())
+        {
+          LnbType lnbType = (LnbType)en.Current;
+          if (lnbType != null && lnbType.IdLnbType == TuningDetail.IdLnbType)
+          {
+            comboBoxLnbType.SelectedItem = en.Current;
+            break;
+          }
+        }
       }
       else
       {
@@ -67,7 +80,8 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
         comboBoxInnerFecRate.SelectedIndex = -1;
         comboBoxPilot.SelectedIndex = -1;
         comboBoxRollOff.SelectedIndex = -1;
-        comboBoxDisEqc.SelectedIndex = -1;
+        comboBoxDiseqc.SelectedIndex = -1;
+        comboBoxLnbType.SelectedIndex = -1;
       }
     }
 
@@ -102,7 +116,9 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
       TuningDetail.PmtPid = Int32.Parse(textBoxDVBSPmt.Text);
       TuningDetail.Provider = textBoxDVBSProvider.Text;
       TuningDetail.FreeToAir = checkBoxDVBSfta.Checked;
-      TuningDetail.DiSEqC = comboBoxDisEqc.SelectedIndex;
+      TuningDetail.DiSEqC = comboBoxDiseqc.SelectedIndex;
+      // This should be safe because we've validated the selection in ValidateInput().
+      TuningDetail.IdLnbType = ((LnbType)comboBoxLnbType.SelectedItem).IdLnbType;
     }
 
     private bool ValidateInput()
@@ -118,9 +134,14 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
         MessageBox.Show(this, "Please enter a valid channel number!", "Incorrect input");
         return false;
       }
-      if (comboBoxDisEqc.SelectedIndex < 0)
+      if (comboBoxDiseqc.SelectedIndex < 0)
       {
         MessageBox.Show(this, "Please select a valid DiSEqC port!", "Incorrect input");
+        return false;
+      }
+      if (comboBoxLnbType.SelectedIndex < 0)
+      {
+        MessageBox.Show(this, "Please select a valid LNB type!", "Incorrect input");
         return false;
       }
       if (textBoxFrequency.Text.Length == 0)
@@ -133,12 +154,22 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
         MessageBox.Show(this, "Please enter a valid frequency!", "Incorrect input");
         return false;
       }
+      if (freq <= 0)
+      {
+        MessageBox.Show(this, "Please enter a valid frequency!", "Incorrect input");
+        return false;
+      }
       if (textBoxSymbolRate.Text.Length == 0)
       {
         MessageBox.Show(this, "Please enter a symbol rate!", "Incorrect input");
         return false;
       }
       if (!Int32.TryParse(textBoxSymbolRate.Text, out symbolrate))
+      {
+        MessageBox.Show(this, "Please enter a valid symbol rate!", "Incorrect input");
+        return false;
+      }
+      if (symbolrate <= 0)
       {
         MessageBox.Show(this, "Please enter a valid symbol rate!", "Incorrect input");
         return false;

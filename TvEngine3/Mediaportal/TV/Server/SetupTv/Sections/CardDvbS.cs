@@ -26,21 +26,22 @@ using System.Windows.Forms;
 using System.Threading;
 using System.Xml;
 using System.Net;
+using DirectShowLib.BDA;
+using System.Xml.Serialization;
+using MediaPortal.UserInterface.Controls;
 using Mediaportal.TV.Server.SetupControls;
-using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
 using Mediaportal.TV.Server.SetupTV.Sections.CIMenu;
 using Mediaportal.TV.Server.SetupTV.Sections.Helpers;
 using Mediaportal.TV.Server.TVControl;
 using Mediaportal.TV.Server.TVDatabase.Entities;
+using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
 using Mediaportal.TV.Server.TVDatabase.Entities.Factories;
 using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
-using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using DirectShowLib.BDA;
-using System.Xml.Serialization;
 using Mediaportal.TV.Server.TVService.Interfaces.Services;
 using Mediaportal.TV.Server.TVService.ServiceAgents;
 
@@ -113,7 +114,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           tuneChannel.InnerFecRate = this.InnerFecRate;
           //Grab the Pilot & Roll-off settings
           tuneChannel.Pilot = this.Pilot;
-          tuneChannel.Rolloff = this.Rolloff;
+          tuneChannel.RollOff = this.Rolloff;
           return tuneChannel;
         }
       }
@@ -205,7 +206,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       InitializeComponent();
       //insert complete ci menu dialog to tab
       Card dbCard = ServiceAgents.Instance.CardServiceAgent.GetCard(_cardNumber, CardIncludeRelationEnum.None);
-      if (dbCard.CAM == true)
+      if (dbCard.UseConditionalAccess == true)
       {
         ciMenuDialog = new CI_Menu_Dialog(_cardNumber);
         this.tabPageCIMenu.Controls.Add(ciMenuDialog);
@@ -505,9 +506,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           satellites.Add(ts);
         }
       }
-
-
-
       IList<Satellite> dbSats = ServiceAgents.Instance.CardServiceAgent.ListAllSatellites(); 
       foreach (SatelliteContext ts in satellites)
       {
@@ -533,9 +531,11 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
             if (ts.SatelliteName[i] >= (char)32 && ts.SatelliteName[i] < (char)127)
               name += ts.SatelliteName[i];
           }
-          ts.Satellite = new Satellite {SatelliteName = name, TransponderFileName = ts.FileName};
+          
+
+          ts.Satellite = new Satellite { SatelliteName = name, TransponderFileName = ts.FileName };
           ts.FileName = ts.FileName;
-        
+
           ServiceAgents.Instance.CardServiceAgent.SaveSatellite(ts.Satellite);
         }
       }
@@ -553,7 +553,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
       _enableEvents = false;
 
-      
       int idx = 0;
 
       mpComboBoxPolarisation.Items.AddRange(new object[]
@@ -601,8 +600,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                                        "RF",
                                        "16 APSK",
                                        "32 APSK",
-                                       "QPSK2 (DVB-S2)",
-                                       "8 PSK2 (DVB-S2)",
+                                       "QPSK (DVB-S2)",
+                                       "8 PSK (DVB-S2)",
                                        "DirectTV"
                                      });
       mpComboBoxMod.SelectedIndex = 0;
@@ -650,9 +649,13 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
       //List<SimpleFileName> satellites = fileFilters.AllFiles;
       List<SatelliteContext> satellites = LoadSatellites();
+      IList<LnbType> tempLnbTypes = LnbTypeManagement.ListAllLnbTypes();
+      LnbType[] lnbTypes = new LnbType[tempLnbTypes.Count];
+      tempLnbTypes.CopyTo(lnbTypes, 0);
+
       MPComboBox[] mpTrans = new MPComboBox[] {mpTransponder1, mpTransponder2, mpTransponder3, mpTransponder4};
-      MPComboBox[] mpDisEqc = new MPComboBox[] {mpDisEqc1, mpDisEqc2, mpDisEqc3, mpDisEqc4};
-      MPComboBox[] mpBands = new MPComboBox[] {mpBand1, mpBand2, mpBand3, mpBand4};
+      MPComboBox[] mpComboDiseqc = new MPComboBox[] {mpComboDiseqc1, mpComboDiseqc2, mpComboDiseqc3, mpComboDiseqc4};
+      MPComboBox[] mpComboLnbType = new MPComboBox[] {mpComboLnbType1, mpComboLnbType2, mpComboLnbType3, mpComboLnbType4};
       MPCheckBox[] mpLNBs = new MPCheckBox[] {mpLNB1, mpLNB2, mpLNB3, mpLNB4};
       MPComboBox curBox;
       MPCheckBox curCheck;
@@ -675,23 +678,45 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           }
         }
 
-        curBox = mpDisEqc[ctlIndex];
+        curBox = mpComboDiseqc[ctlIndex];
         curBox.Items.Clear();
-        curBox.Items.Add(DisEqcType.None);
-        curBox.Items.Add(DisEqcType.SimpleA);
-        curBox.Items.Add(DisEqcType.SimpleB);
-        curBox.Items.Add(DisEqcType.Level1AA);
-        curBox.Items.Add(DisEqcType.Level1AB);
-        curBox.Items.Add(DisEqcType.Level1BA);
-        curBox.Items.Add(DisEqcType.Level1BB);
+        curBox.Items.AddRange(new object[] {
+            "None",
+            // Simple DiSEqC (burst)
+            "Simple A (tone burst)",
+            "Simple B (data burst)",
+            // DiSEqC 1.0
+            "Port A (option A, position A)",
+            "Port B (option A, position B)",
+            "Port C (option B, position A)",
+            "Port D (option B, position B)",
+            // DiSEqC 1.1+
+            "Port 1",
+            "Port 2",
+            "Port 3",
+            "Port 4",
+            "Port 5",
+            "Port 6",
+            "Port 7",
+            "Port 8",
+            "Port 9",
+            "Port 10",
+            "Port 11",
+            "Port 12",
+            "Port 13",
+            "Port 14",
+            "Port 15",
+            "Port 16"});
         curBox.SelectedIndex =
           Int32.Parse(ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue(String.Format("dvbs{0}DiSEqC{1}", _cardNumber, idx), "0").Value);
 
-        curBox = mpBands[ctlIndex];
+        curBox = mpComboLnbType[ctlIndex];
+        curBox.Items.Clear();
+        curBox.Items.AddRange((object[])lnbTypes);
         curBox.SelectedIndex =
           Int32.Parse(ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue(String.Format("dvbs{0}band{1}", _cardNumber, idx), "0").Value);
 
-        curCheck = mpLNBs[ctlIndex];
+        curCheck = mpLNBs[ctlIndex];        
         curCheck.Checked = (ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue(String.Format("dvbs{0}LNB{1}", _cardNumber, idx), "0").Value == "true");
       }
 
@@ -699,12 +724,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       mpLNB2_CheckedChanged(null, null);
       mpLNB3_CheckedChanged(null, null);
       mpLNB4_CheckedChanged(null, null);
-
-      chkOverrideLNB.Checked = (ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("lnbDefault", "true").Value != "true");
-      textBoxLNBLo.Text = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbLowFrequency", "0").Value;
-      textBoxLNBHi.Text = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbHighFrequency", "0").Value;
-      textBoxLNBSwitch.Text = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbSwitchFrequency", "0").Value;
-      chkOverrideLNB_CheckedChanged(null, null);
 
       checkBoxCreateGroups.Checked = (ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("dvbs" + _cardNumber + "creategroups", "false").Value == "true");
       checkBoxCreateGroupsSat.Checked = (ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("dvbs" + _cardNumber + "creategroupssat", "false").Value ==
@@ -714,11 +733,11 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
       checkBoxEnableDVBS2.Checked = (ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("dvbs" + _cardNumber + "enabledvbs2", "false").Value == "true");
 
+
       _enableEvents = true;
       mpLNB1_CheckedChanged(null, null);
 
       checkBoxAdvancedTuning.Checked = false;
-      //grpManualScan.Enabled = false;
       checkBoxAdvancedTuning.Enabled = true;
 
       checkBoxCreateSignalGroup.Text = "\"" + TvConstants.TvGroupNames.DVBS + "\"";
@@ -747,53 +766,21 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "SatteliteContext2", mpTransponder2.SelectedIndex.ToString());
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "SatteliteContext3", mpTransponder3.SelectedIndex.ToString());
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "SatteliteContext4", mpTransponder4.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc1", mpDisEqc1.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc2", mpDisEqc2.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc3", mpDisEqc3.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc4", mpDisEqc4.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band1", mpBand1.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band2", mpBand2.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band3", mpBand3.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band4", mpBand4.SelectedIndex.ToString());
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "LNB1", mpLNB1.Checked ? "true" : "false");      
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc1", mpComboDiseqc1.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc2", mpComboDiseqc2.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc3", mpComboDiseqc3.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "DisEqc4", mpComboDiseqc4.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band1", mpComboLnbType1.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band2", mpComboLnbType2.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band3", mpComboLnbType3.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "band4", mpComboLnbType4.SelectedIndex.ToString());
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "LNB1", mpLNB1.Checked ? "true" : "false");
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "LNB2", mpLNB2.Checked ? "true" : "false");
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "LNB3", mpLNB3.Checked ? "true" : "false");
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "LNB4", mpLNB4.Checked ? "true" : "false");
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "enabledvbs2", checkBoxEnableDVBS2.Checked ? "true" : "false");
-      
 
-      bool restart = false;
-      Setting setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("lnbDefault", "true");
-      if (setting.Value != (chkOverrideLNB.Checked ? "false" : "true"))
-      {
-        restart = true;
-      }
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("lnbDefault", chkOverrideLNB.Checked ? "false" : "true");
-
-      setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbLowFrequency", "0");
-      if (setting.Value != textBoxLNBLo.Text)
-      {
-        restart = true;
-      }
-      setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbLowFrequency", textBoxLNBLo.Text);      
-
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("LnbHighFrequency", "0");
-      if (setting.Value != textBoxLNBHi.Text)
-      {
-        restart = true;
-      }
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("LnbHighFrequency", textBoxLNBHi.Text);
-
-      setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("LnbSwitchFrequency", "0");
-      if (setting.Value != textBoxLNBSwitch.Text)
-      {
-        restart = true;
-      }
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("LnbSwitchFrequency", textBoxLNBSwitch.Text);      
-      if (restart)
-      {        
-        ServiceAgents.Instance.ControllerServiceAgent.Restart();
-      }
+    
     }
 
     private void UpdateStatus()
@@ -833,7 +820,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           return;
 
         case ScanState.Initialized:
-          SaveSettings();
+         SaveSettings();
           
           Card card = ServiceAgents.Instance.CardServiceAgent.GetCardByDevicePath(ServiceAgents.Instance.ControllerServiceAgent.CardDevice(_cardNumber));
           if (card.Enabled == false)
@@ -891,25 +878,25 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         _radioChannelsUpdated = 0;
 
         if (mpLNB1.Checked)
-          Scan(1, (BandType)mpBand1.SelectedIndex, (DisEqcType)mpDisEqc1.SelectedIndex,
+          Scan(1, (LnbType)mpComboLnbType1.SelectedItem, (DiseqcPort)mpComboDiseqc1.SelectedIndex,
                (SatelliteContext)mpTransponder1.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB2.Checked)
-          Scan(2, (BandType)mpBand2.SelectedIndex, (DisEqcType)mpDisEqc2.SelectedIndex,
+          Scan(2, (LnbType)mpComboLnbType2.SelectedItem, (DiseqcPort)mpComboDiseqc2.SelectedIndex,
                (SatelliteContext)mpTransponder2.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB3.Checked)
-          Scan(3, (BandType)mpBand3.SelectedIndex, (DisEqcType)mpDisEqc3.SelectedIndex,
+          Scan(3, (LnbType)mpComboLnbType3.SelectedItem, (DiseqcPort)mpComboDiseqc3.SelectedIndex,
                (SatelliteContext)mpTransponder3.SelectedItem);
         if (scanState == ScanState.Cancel)
           return;
 
         if (mpLNB4.Checked)
-          Scan(4, (BandType)mpBand4.SelectedIndex, (DisEqcType)mpDisEqc4.SelectedIndex,
+          Scan(4, (LnbType)mpComboLnbType4.SelectedItem, (DiseqcPort)mpComboDiseqc4.SelectedIndex,
                (SatelliteContext)mpTransponder4.SelectedItem);
 
         listViewStatus.Items.Add(
@@ -936,13 +923,13 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       }
     }
 
-    private void Scan(int lnb, BandType bandType, DisEqcType diseqc, SatelliteContext context)
+    private void Scan(int lnb, LnbType lnbType, DiseqcPort diseqc, SatelliteContext context)
     {
       // all transponders to scan
-      var dvbsChannels = new List<DVBSChannel>();
+      List<DVBSChannel> _channels = new List<DVBSChannel>();
 
       // get default sat position from DB
-      
+
       Card card = ServiceAgents.Instance.CardServiceAgent.GetCardByDevicePath(ServiceAgents.Instance.ControllerServiceAgent.CardDevice(_cardNumber));
 
       int position = -1;
@@ -967,7 +954,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           foreach (Transponder t in _transponders)
           {
             DVBSChannel curChannel = t.toDVBSChannel;
-            dvbsChannels.Add(curChannel);
+            _channels.Add(curChannel);
           }
           break;
 
@@ -975,8 +962,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         case ScanTypes.NIT:
           _transponders.Clear();
           DVBSChannel tuneChannel = GetManualTuning();
-          tuneChannel.DisEqc = diseqc;
-          tuneChannel.BandType = bandType;
+          tuneChannel.Diseqc = diseqc;
+          tuneChannel.LnbType = lnbType;
           tuneChannel.SatelliteIndex = position;
 
           listViewStatus.Items.Clear();
@@ -991,7 +978,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
             for (int i = 0; i < channels.Length; ++i)
             {
               DVBSChannel curChannel = (DVBSChannel)channels[i];
-              dvbsChannels.Add(curChannel);
+              _channels.Add(curChannel);
               item = listViewStatus.Items.Add(new ListViewItem(curChannel.ToString()));
               item.EnsureVisible();
             }
@@ -999,30 +986,30 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
           ListViewItem lastItem =
             listViewStatus.Items.Add(
-              new ListViewItem(String.Format("Scan done, found {0} transponders...", dvbsChannels.Count)));
+              new ListViewItem(String.Format("Scan done, found {0} transponders...", _channels.Count)));
           lastItem.EnsureVisible();
           break;
 
           // scan only single TP
         case ScanTypes.SingleTransponder:
-          dvbsChannels.Add(GetManualTuning());
+          _channels.Add(GetManualTuning());
           break;
       }
 
       // no channels
-      if (dvbsChannels.Count == 0)
+      if (_channels.Count == 0)
         return;
 
       IUser user = new User();
       user.CardId = _cardNumber;
       int scanIndex = 0; // count of really scanned TPs (S2 skipped)
-      for (int index = 0; index < dvbsChannels.Count; ++index)
+      for (int index = 0; index < _channels.Count; ++index)
       {
         if (scanState == ScanState.Cancel)
           return;
 
-        DVBSChannel tuneChannel = dvbsChannels[index];
-        float percent = ((float)(index)) / dvbsChannels.Count;
+        DVBSChannel tuneChannel = _channels[index];
+        float percent = ((float)(index)) / _channels.Count;
         percent *= 100f;
         if (percent > 100f)
           percent = 100f;
@@ -1032,8 +1019,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         // scanning is not enabled then skip it. Note that
         // a roll-off of .35 is the default for standard
         // DVB-S.
-        if ((tuneChannel.Rolloff == RollOff.Twenty ||
-             tuneChannel.Rolloff == RollOff.TwentyFive ||
+        if ((tuneChannel.RollOff == RollOff.Twenty ||
+             tuneChannel.RollOff == RollOff.TwentyFive ||
              tuneChannel.Pilot == Pilot.On) &&
             !checkBoxEnableDVBS2.Checked)
         {
@@ -1042,16 +1029,9 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
         scanIndex++;
 
-        tuneChannel.DisEqc = diseqc;
-        tuneChannel.BandType = bandType;
+        tuneChannel.Diseqc = diseqc;
+        tuneChannel.LnbType = lnbType;
         tuneChannel.SatelliteIndex = position;
-        if (bandType == BandType.Circular)
-        {
-          if (tuneChannel.Polarisation == Polarisation.LinearH)
-            tuneChannel.Polarisation = Polarisation.CircularL;
-          else if (tuneChannel.Polarisation == Polarisation.LinearV)
-            tuneChannel.Polarisation = Polarisation.CircularR;
-        }
         string line = String.Format("lnb:{0} {1}tp- {2} {3} {4}", lnb, 1 + index, tuneChannel.Frequency,
                                     tuneChannel.Polarisation, tuneChannel.SymbolRate);
         ListViewItem item = listViewStatus.Items.Add(new ListViewItem(line));
@@ -1100,7 +1080,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
             //track channel movements.
             TuningDetailSearchEnum tuningDetailSearchEnum = TuningDetailSearchEnum.NetworkId;
             tuningDetailSearchEnum |= TuningDetailSearchEnum.ServiceId;
-            currentDetail = ServiceAgents.Instance.ChannelServiceAgent.GetTuningDetailCustom(channel, tuningDetailSearchEnum);                 
+            currentDetail = ServiceAgents.Instance.ChannelServiceAgent.GetTuningDetailCustom(channel, tuningDetailSearchEnum);                             
           }
           else
           {
@@ -1120,7 +1100,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
             {
               dbChannel.SortOrder = channel.LogicalChannelNumber;
             }
-            dbChannel.MediaType = (int) channel.MediaType;
+            dbChannel.MediaType = (int)channel.MediaType;
             dbChannel = ServiceAgents.Instance.ChannelServiceAgent.SaveChannel(dbChannel);
             dbChannel.AcceptChanges();
           }
@@ -1133,41 +1113,41 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           if (dbChannel.MediaType == (int)MediaTypeEnum.TV)
           {
             ChannelGroup group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(TvConstants.TvGroupNames.AllChannels, MediaTypeEnum.TV);
-            MappingHelper.AddChannelToGroup(ref dbChannel, @group);                                                      
+            MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             if (checkBoxCreateSignalGroup.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(TvConstants.TvGroupNames.DVBS, MediaTypeEnum.TV);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                                                        
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
             if (checkBoxCreateGroupsSat.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(context.Satellite.SatelliteName, MediaTypeEnum.TV);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                                                        
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
             if (checkBoxCreateGroups.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(channel.Provider, MediaTypeEnum.TV);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                                                                      
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
           }
           if (dbChannel.MediaType == (int)MediaTypeEnum.Radio)
           {
             ChannelGroup group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(TvConstants.RadioGroupNames.AllChannels, MediaTypeEnum.Radio);
-            MappingHelper.AddChannelToGroup(ref dbChannel, @group);             
+            MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             if (checkBoxCreateSignalGroup.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(TvConstants.RadioGroupNames.DVBS, MediaTypeEnum.Radio);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                           
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
             if (checkBoxCreateGroupsSat.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(context.Satellite.SatelliteName, MediaTypeEnum.Radio);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                           
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
             if (checkBoxCreateGroups.Checked)
             {
               group = ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(channel.Provider, MediaTypeEnum.Radio);
-              MappingHelper.AddChannelToGroup(ref dbChannel, @group);                                         
+              MappingHelper.AddChannelToGroup(ref dbChannel, @group);
             }
           }
 
@@ -1227,7 +1207,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
     private void SetupMotor()
     {
       _enableEvents = false;
-      
+
       Setting setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("dvbs" + _cardNumber + "motorEnabled", "no");
       bool enabled = false;
       if (setting.Value == "yes")
@@ -1342,7 +1322,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       //store motor position..
       int index = -1;
       SatelliteContext sat = (SatelliteContext)comboBoxSat.SelectedItem;
-      Card card = ServiceAgents.Instance.CardServiceAgent.GetCard(_cardNumber); 
+      Card card = ServiceAgents.Instance.CardServiceAgent.GetCard(_cardNumber);
       IList<DisEqcMotor> motorSettings = card.DisEqcMotors;
       foreach (DisEqcMotor motor in motorSettings)
       {
@@ -1394,11 +1374,12 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         return;
       if (checkBox1.Checked == false)
         return;
-            
+
       ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "selectedMotorSat", comboBoxSat.SelectedIndex.ToString());
       LoadMotorTransponder();
       comboBox1_SelectedIndexChanged(null, null);
     }
+
 
     private void checkBoxEnabled_CheckedChanged(object sender, EventArgs e)
     {
@@ -1408,7 +1389,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         return;
       if (checkBoxEnabled.Checked)
       {
-        ServiceAgents.Instance.ControllerServiceAgent.DiSEqCForceLimit(_cardNumber, true);        
+        ServiceAgents.Instance.ControllerServiceAgent.DiSEqCForceLimit(_cardNumber, true);
         ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "limitsEnabled", "yes");
       }
       else
@@ -1419,21 +1400,20 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         {
           ServiceAgents.Instance.ControllerServiceAgent.DiSEqCForceLimit(_cardNumber, false);
           ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "limitsEnabled", "no");
-          
+
         }
         else
         {
           _enableEvents = false;
           checkBoxEnabled.Checked = true;
           ServiceAgents.Instance.ControllerServiceAgent.DiSEqCForceLimit(_cardNumber, true);
-          ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "limitsEnabled", "yes");          
+          ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "limitsEnabled", "yes");
           _enableEvents = true;
         }
       }
     }
-
     private void LoadMotorTransponder()
-    {      
+    {
       Setting setting = ServiceAgents.Instance.SettingServiceAgent.GetSettingWithDefaultValue("dvbs" + _cardNumber + "limitsEnabled", "yes");
       if (setting.Value == "yes")
         checkBoxEnabled.Checked = true;
@@ -1468,14 +1448,13 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       tuneChannel.SymbolRate = transponder.SymbolRate;
       tuneChannel.ModulationType = transponder.Modulation;
       tuneChannel.Pilot = transponder.Pilot;
-      tuneChannel.Rolloff = transponder.Rolloff;
+      tuneChannel.RollOff = transponder.Rolloff;
       tuneChannel.InnerFecRate = transponder.InnerFecRate;
-      tuneChannel.BandType = BandType.Universal;
-      tuneChannel.DisEqc = DisEqcType.None;
-      if (mpBand1.SelectedIndex >= 0)
-        tuneChannel.BandType = (BandType)mpBand1.SelectedIndex;
-      if (mpDisEqc1.SelectedIndex >= 0)
-        tuneChannel.DisEqc = (DisEqcType)mpDisEqc1.SelectedIndex;
+      tuneChannel.Diseqc = DiseqcPort.None;
+      if (mpComboLnbType1.SelectedIndex >= 0)
+        tuneChannel.LnbType = (LnbType)mpComboLnbType1.SelectedItem;
+      if (mpComboDiseqc1.SelectedIndex >= 0)
+        tuneChannel.Diseqc = (DiseqcPort)mpComboDiseqc1.SelectedIndex;
       _user.CardId = _cardNumber;
       ServiceAgents.Instance.ControllerServiceAgent.StopCard(_user.CardId);
       _user.CardId = _cardNumber;
@@ -1556,7 +1535,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       buttonSetEastLimit.Enabled = checkBox1.Checked;
       buttonReset.Enabled = checkBox1.Checked;
 
-      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "motorEnabled", checkBox1.Checked ? "yes" : "no");
+      ServiceAgents.Instance.SettingServiceAgent.SaveSetting("dvbs" + _cardNumber + "motorEnabled", checkBox1.Checked ? "yes" : "no");      
     }
 
     private bool reentrant;
@@ -1644,60 +1623,24 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
 
     #region LNB selection tab
 
-    private void chkOverrideLNB_CheckedChanged(object sender, EventArgs e)
-    {
-      textBoxLNBLo.Enabled = chkOverrideLNB.Checked;
-      textBoxLNBHi.Enabled = chkOverrideLNB.Checked;
-      textBoxLNBSwitch.Enabled = chkOverrideLNB.Checked;
-    }
-
     private void mpLNB1_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder1.Visible = mpBand1.Visible = mpDisEqc1.Visible = mpLNB1.Checked;
+      mpTransponder1.Visible = mpComboLnbType1.Visible = mpComboDiseqc1.Visible = mpLNB1.Checked;
     }
 
     private void mpLNB2_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder2.Visible = mpBand2.Visible = mpDisEqc2.Visible = mpLNB2.Checked;
+      mpTransponder2.Visible = mpComboLnbType2.Visible = mpComboDiseqc2.Visible = mpLNB2.Checked;
     }
 
     private void mpLNB3_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder3.Visible = mpBand3.Visible = mpDisEqc3.Visible = mpLNB3.Checked;
+      mpTransponder3.Visible = mpComboLnbType3.Visible = mpComboDiseqc3.Visible = mpLNB3.Checked;
     }
 
     private void mpLNB4_CheckedChanged(object sender, EventArgs e)
     {
-      mpTransponder4.Visible = mpBand4.Visible = mpDisEqc4.Visible = mpLNB4.Checked;
-    }
-
-    private void mpBand1_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      if (_enableEvents == false)
-        return;
-      if (chkOverrideLNB.Checked)
-        return;
-      int lof1, lof2, sw;
-      ScanParameters p = new ScanParameters();
-      BandTypeConverter.GetDefaultLnbSetup(p, (BandType)mpBand1.SelectedIndex, out lof1, out lof2, out sw);
-      textBoxLNBLo.Text = lof1.ToString();
-      textBoxLNBHi.Text = lof2.ToString();
-      textBoxLNBSwitch.Text = sw.ToString();
-    }
-
-    private void mpBand2_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
-    }
-
-    private void mpBand3_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
-    }
-
-    private void mpBand4_SelectedIndexChanged(object sender, EventArgs e)
-    {
-      mpBand1_SelectedIndexChanged(sender, e);
+      mpTransponder4.Visible = mpComboLnbType4.Visible = mpComboDiseqc4.Visible = mpLNB4.Checked;
     }
 
     private void checkEnableDVBS2_CheckedChanged(object sender, EventArgs e)
@@ -1781,8 +1724,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       Control[] scanControls = new Control[]
                                  {
                                    mpLNB1, mpLNB2, mpLNB3, mpLNB4,
-                                   mpDisEqc1, mpDisEqc2, mpDisEqc3, mpDisEqc4,
-                                   mpBand1, mpBand2, mpBand3, mpBand4,
+                                   mpComboDiseqc1, mpComboDiseqc2, mpComboDiseqc3, mpComboDiseqc4,
+                                   mpComboLnbType1, mpComboLnbType2, mpComboLnbType3, mpComboLnbType4,
                                    mpTransponder1, mpTransponder2, mpTransponder3, mpTransponder4,
                                    checkBoxCreateGroupsSat, checkBoxCreateGroups, checkBoxCreateSignalGroup,
                                    checkBoxEnableDVBS2, checkBoxEnableChannelMoveDetection, checkBoxAdvancedTuning,
@@ -1871,9 +1814,9 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       Transponder t = new Transponder();
       t.CarrierFrequency = Convert.ToInt32(ch.Frequency);
       t.InnerFecRate = ch.InnerFecRate;
-      t.Modulation  = ch.ModulationType;
+      t.Modulation = ch.ModulationType;
       t.Pilot = ch.Pilot;
-      t.Rolloff = ch.Rolloff;
+      t.Rolloff = ch.RollOff;
       t.SymbolRate = ch.SymbolRate;
       t.Polarisation = ch.Polarisation;
       return t;
@@ -1890,12 +1833,12 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       if (checkBoxEnableDVBS2.Checked)
       {
         tuneChannel.Pilot = (Pilot)mpComboBoxPilot.SelectedIndex - 1;
-        tuneChannel.Rolloff = (RollOff)mpComboBoxRollOff.SelectedIndex - 1;
+        tuneChannel.RollOff = (RollOff)mpComboBoxRollOff.SelectedIndex - 1;
       }
       else
       {
         tuneChannel.Pilot = Pilot.NotSet;
-        tuneChannel.Rolloff = RollOff.NotSet;
+        tuneChannel.RollOff = RollOff.NotSet;
       }
       return tuneChannel;
     }
@@ -1930,6 +1873,11 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
     {
       mpGrpAdvancedTuning.Visible = checkBoxAdvancedTuning.Checked;
       SetControlStates();
+    }
+
+    private void mpCombo_MouseHover(object sender, EventArgs e)
+    {
+      toolTip1.SetToolTip((Control)sender, ((MPComboBox)sender).SelectedItem.ToString());
     }
   }
 }

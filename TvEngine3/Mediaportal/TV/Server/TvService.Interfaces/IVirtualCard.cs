@@ -70,12 +70,7 @@ namespace Mediaportal.TV.Server.TVService.Interfaces
     [DataMember]
     string RecordingFileName { get; }
 
-    /// <summary>
-    /// Gets the available audio streams.
-    /// </summary>
-    /// <value>The available audio streams.</value>
-    [DataMember]
-    IEnumerable<IAudioStream> AvailableAudioStreams { get; }
+    
 
     /// <summary>
     /// returns which schedule is currently being recorded
@@ -200,11 +195,6 @@ namespace Mediaportal.TV.Server.TVService.Interfaces
 
     MediaTypeEnum? MediaType { get; }
 
-    /// <summary>
-    /// Gets the current video stream format.
-    /// </summary>
-    /// <value>The available audio streams.</value>
-    IVideoStream GetCurrentVideoStream(IUser user);
 
     /// <summary>
     /// Fetches the stream quality information

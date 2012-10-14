@@ -26,19 +26,47 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
   /// Exception class for the tv library
   /// </summary>
   [Serializable]
-  public class TvExceptionTuneCancelled : Exception
+  public class TvExceptionServiceNotRunning : TvException
+  {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TvExceptionServiceNotRunning"/> class.
+    /// </summary>
+    public TvExceptionServiceNotRunning() { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TvExceptionServiceNotRunning"/> class.
+    /// </summary>
+    /// <param name="message">The message.</param>
+    public TvExceptionServiceNotRunning(string message)
+      : base(message) { }
+
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TvExceptionServiceNotRunning"/> class.
+    /// </summary>
+    /// <param name="message">The message.</param>
+    /// <param name="innerException">The inner exception.</param>
+    public TvExceptionServiceNotRunning(string message, Exception innerException)
+      : base(message, innerException) { }
+  }
+
+  /// <summary>
+  /// Exception class for the tv library
+  /// </summary>
+  [Serializable]
+  public class TvExceptionTuneCancelled : TvException
   {
     /// <summary>
     /// Initializes a new instance of the <see cref="TvExceptionTuneCancelled"/> class.
     /// </summary>
-    public TvExceptionTuneCancelled() {}
+    public TvExceptionTuneCancelled() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvExceptionTuneCancelled"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvExceptionTuneCancelled(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -47,26 +75,26 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvExceptionTuneCancelled(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 
   /// <summary>
   /// Exception class for the tv library
   /// </summary>
   [Serializable]
-  public class TvExceptionNoPMT : Exception
+  public class TvExceptionNoPMT : TvException
   {
     /// <summary>
     /// Initializes a new instance of the <see cref="TvExceptionNoPMT"/> class.
     /// </summary>
-    public TvExceptionNoPMT() {}
+    public TvExceptionNoPMT() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvExceptionNoPMT"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvExceptionNoPMT(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -75,26 +103,26 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvExceptionNoPMT(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 
   /// <summary>
   /// Exception class for the tv library
   /// </summary>
   [Serializable]
-  public class TvExceptionNoSignal : Exception
+  public class TvExceptionNoSignal : TvException
   {
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
-    public TvExceptionNoSignal() {}
+    public TvExceptionNoSignal() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvExceptionNoSignal(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -103,26 +131,26 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvExceptionNoSignal(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 
   /// <summary>
   /// Exception class for the tv library
   /// </summary>
   [Serializable]
-  public class TvExceptionGraphBuildingFailed : Exception
+  public class TvExceptionGraphBuildingFailed : TvException
   {
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
-    public TvExceptionGraphBuildingFailed() {}
+    public TvExceptionGraphBuildingFailed() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvExceptionGraphBuildingFailed(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -131,7 +159,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvExceptionGraphBuildingFailed(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 
 
@@ -139,19 +167,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
   /// Exception class for the tv library
   /// </summary>
   [Serializable]
-  public class TvExceptionSWEncoderMissing : Exception
+  public class TvExceptionSWEncoderMissing : TvException
   {
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
-    public TvExceptionSWEncoderMissing() {}
+    public TvExceptionSWEncoderMissing() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvExceptionSWEncoderMissing(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -160,7 +188,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvExceptionSWEncoderMissing(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 
   /// <summary>
@@ -172,14 +200,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
-    public TvException() {}
+    public TvException() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TvException"/> class.
     /// </summary>
     /// <param name="message">The message.</param>
     public TvException(string message)
-      : base(message) {}
+      : base(message) { }
 
 
     /// <summary>
@@ -188,6 +216,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces
     /// <param name="message">The message.</param>
     /// <param name="innerException">The inner exception.</param>
     public TvException(string message, Exception innerException)
-      : base(message, innerException) {}
+      : base(message, innerException) { }
   }
 }

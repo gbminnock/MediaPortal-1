@@ -21,10 +21,11 @@
 using System;
 using System.Windows.Forms;
 using DirectShowLib.BDA;
+using Mediaportal.TV.Server.SetupControls;
 
 namespace Mediaportal.TV.Server.SetupTV.Dialogs
 {
-  public partial class FormATSCTuningDetail : SetupControls.FormTuningDetailCommon
+  public partial class FormATSCTuningDetail : FormTuningDetailCommon
   {
     public FormATSCTuningDetail()
     {
@@ -144,7 +145,10 @@ namespace Mediaportal.TV.Server.SetupTV.Dialogs
         MessageBox.Show(this, "Please enter a valid frequency!", "Incorrect input");
         return false;
       }
-      if (frequency < 0)
+      // Frequency must be set to -1 for ATSC channels as they are tuned by channel
+      // number. QAM channels are tuned by frequency and must have a valid frequency
+      // specified.
+      if ((comboBoxQAMModulation.SelectedIndex == 1 && frequency != -1) || (comboBoxQAMModulation.SelectedIndex != 1 && frequency <= 0))
       {
         MessageBox.Show(this, "Please enter a valid frequency!", "Incorrect input");
         return false;

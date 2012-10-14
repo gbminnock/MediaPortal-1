@@ -72,8 +72,7 @@ public class BookingMetadata
       p.EpisodeName = EpisodeName;
       p.EpisodePart = EpisodePart;
       p.StarRating = StarRating;
-      p.Classification = Classification;
-      p.Classification = Classification;
+      p.Classification = Classification;      
       return p;
     }
    

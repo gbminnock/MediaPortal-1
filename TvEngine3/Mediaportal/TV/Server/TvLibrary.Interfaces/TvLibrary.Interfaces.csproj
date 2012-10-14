@@ -71,12 +71,20 @@
     <Compile Include="..\..\..\..\..\Common-MP-TVE3\SolutionInfo.cs">
       <Link>SolutionInfo.cs</Link>
     </Compile>
-    <Compile Include="CardType.cs" />
     <Compile Include="ChannelLinkage\LinkedChannel.cs" />
     <Compile Include="ChannelLinkage\PortalChannel.cs" />
     <Compile Include="CiMenu\CiMenu.cs" />
     <Compile Include="CiMenu\CiMenuEventCallbackSink.cs" />
     <Compile Include="CiMenu\CiMenuEntry.cs" />
+    <Compile Include="DvbConditionalAccess.cs" />
+    <Compile Include="Interfaces\Device\IAddOnDevice.cs" />
+    <Compile Include="Interfaces\Device\IConditionalAccessProvider.cs" />
+    <Compile Include="Interfaces\Device\ICustomDevice.cs" />
+    <Compile Include="Interfaces\Device\ICustomTuner.cs" />
+    <Compile Include="Interfaces\Device\IDiseqcController.cs" />
+    <Compile Include="Interfaces\Device\IDiseqcDevice.cs" />
+    <Compile Include="Interfaces\Device\IPidFilterController.cs" />
+    <Compile Include="Interfaces\Device\IPowerDevice.cs" />
     <Compile Include="Interfaces\ICiMenuEventCallback.cs" />
     <Compile Include="DvbTextConverter.cs" />
     <Compile Include="HardwareProviders\IHardwareProvider.cs" />
@@ -93,9 +101,11 @@
     <Compile Include="Interfaces\ICiMenuActions.cs" />
     <Compile Include="Interfaces\ICiMenuCallbacks.cs" />
     <Compile Include="Interfaces\IDiSEqCMotor.cs" />
+    <Compile Include="Interfaces\ILnbType.cs" />
     <Compile Include="Interfaces\ITVChannelLinkage.cs" />
     <Compile Include="Interfaces\ITvSubChannel.cs" />
     <Compile Include="Interfaces\IVideoStream.cs" />
+    <Compile Include="Interfaces\TvPluginCallback.cs" />
     <Compile Include="Logging\FileLogger.cs" />
     <Compile Include="Logging\ILogger.cs" />
     <Compile Include="Logging\Log.cs" />
@@ -134,6 +144,7 @@
     <Compile Include="Simmetrics\MathFuncs.cs" />
     <Compile Include="Simmetrics\SubCost01.cs" />
     <Compile Include="TvConstants.cs" />
+    <Compile Include="TvEnums.cs" />
     <Compile Include="TvException.cs" />
   </ItemGroup>
   <ItemGroup>

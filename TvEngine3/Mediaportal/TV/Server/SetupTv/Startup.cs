@@ -248,22 +248,7 @@ namespace Mediaportal.TV.Server.SetupTV
         MessageBox.Show("Failed to upgrade the database.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         return;
       }
-      */
-      
-
-     
-
-      // Mantis #0001991: disable mpg recording  (part I: force TS recording format)
-      IList<Card> TvCards = ServiceAgents.Instance.CardServiceAgent.ListAllCards(CardIncludeRelationEnum.None);
-      foreach (Card card in TvCards)
-      {
-        if (card.RecordingFormat != 0)
-        {
-          card.RecordingFormat = 0;
-          Log.Info("Card {0} switched from .MPG to .TS format", card.Name);
-          ServiceAgents.Instance.CardServiceAgent.SaveCard(card);
-        }
-      }
+      */                 
 
       // Mantis #0002138: impossible to configure TVGroups             
       ServiceAgents.Instance.ChannelGroupServiceAgent.GetOrCreateGroup(TvConstants.TvGroupNames.AllChannels, MediaTypeEnum.TV);

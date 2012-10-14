@@ -263,6 +263,12 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         }
         private ObjectSet<Version> _versions;
     
+        public ObjectSet<LnbType> LnbTypes
+        {
+            get { return _lnbTypes  ?? (_lnbTypes = CreateObjectSet<LnbType>("LnbTypes")); }
+        }
+        private ObjectSet<LnbType> _lnbTypes;
+    
         public ObjectSet<RecordingCredit> RecordingCredits
         {
             get { return _recordingCredits  ?? (_recordingCredits = CreateObjectSet<RecordingCredit>("RecordingCredits")); }

@@ -19,12 +19,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.Analog;
-using Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Graphs.HDPVR;
-using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Graphs;
-using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Structures;
-using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
@@ -86,7 +80,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
 
     #endregion
 
-    #region variables    
+    #region variables
 
     /// <summary>
     /// Indicates, if the channel has teletext
@@ -102,16 +96,6 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// Instance of the teletext decoder
     /// </summary>
     protected DVBTeletext _teletextDecoder;
-
-    /// <summary>
-    /// Struct of a ts header
-    /// </summary>
-    protected TSHelperTools.TSHeader _packetHeader;
-
-    /// <summary>
-    /// Instance of ts helper class
-    /// </summary>
-    protected TSHelperTools _tsHelper;
 
     /// <summary>
     /// Instance of the current channel
@@ -144,24 +128,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     protected int _subChannelId;
 
     /// <summary>
-    /// Current state of the graph
-    /// </summary>
-    protected GraphState _graphState;
-
-    /// <summary>
     /// Scanning parameters
     /// </summary>
     protected ScanParameters _parameters;
 
     /// <summary>
-    /// Indicates, if timeshifting is started
+    /// A flag used by the TV service as a signal to abort the tuning process before it is completed.
     /// </summary>
-    protected bool _startTimeShifting;
-
-    /// <summary>
-    /// Indicates, if recording is started
-    /// </summary>
-    protected bool _startRecording;
+    protected bool _cancelTune;
 
     #endregion
 
@@ -170,16 +144,15 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseSubChannel"/> class.
     /// </summary>
-    protected BaseSubChannel()
+    protected BaseSubChannel(int subChannelId)
     {
+      _cancelTune = false;
+      _subChannelId = subChannelId;
       _teletextDecoder = new DVBTeletext();
       _timeshiftFileName = String.Empty;
       _recordingFileName = String.Empty;
       _dateRecordingStarted = DateTime.MinValue;
       _dateTimeShiftStarted = DateTime.MinValue;
-      //_graphRunning = false;
-      _graphState = GraphState.Created;
-      _tsHelper = new TSHelperTools();
     }
 
     #endregion
@@ -313,17 +286,21 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <returns></returns>
     public bool StartTimeShifting(string fileName)
     {
+      Log.Debug("BaseSubChannel: subchannel {0} start timeshifting to {1}", _subChannelId, fileName);
       try
       {
-        return OnStartTimeShifting(fileName);
+        OnStartTimeShifting(fileName);
+        _timeshiftFileName = fileName;
+        _dateTimeShiftStarted = DateTime.Now;
       }
-      catch (Exception e)
+      catch (Exception ex)
       {
-        //cleanup
-        Log.WriteFile("StartTimeShifting failed, cleaning up {0}", e.Message);
+        Log.Debug("BaseSubChannel: failed to start timeshifting\r\n{0}", ex.ToString());
         StopTimeShifting();
+        return false;
       }
-      return false;
+
+      return true;
     }
 
     /// <summary>
@@ -332,13 +309,10 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <returns></returns>
     public bool StopTimeShifting()
     {
+      Log.Debug("BaseSubChannel: subchannel {0} stop timeshifting", _subChannelId);
       OnStopTimeShifting();
-      _startTimeShifting = false;
-      _graphState = GraphState.Created;
-
-      _timeshiftFileName = "";
+      _timeshiftFileName = String.Empty;
       _dateTimeShiftStarted = DateTime.MinValue;
-
       return true;
     }
 
@@ -349,36 +323,16 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <returns></returns>
     public bool StartRecording(string fileName)
     {
+      Log.Debug("BaseSubChannel: subchannel {0} start recording to {1}", _subChannelId, fileName);
       try
       {
-        Log.WriteFile("StartRecording to {0}", fileName);
         OnStartRecording(fileName);
         _recordingFileName = fileName;
-
-        if (this is AnalogSubChannel)
-        {
-          Log.Info("analog subch:{0} Started recording", _subChannelId);
-        }
-        else if (this is HDPVRChannel)
-        {
-          Log.Info("HDPVR subch:{0} Started recording", _subChannelId);
-        }
-        else if (this is TvDvbChannel)
-        {
-          Log.Info("DVB subch:{0} Started recording", _subChannelId);
-        }
-        else
-        {
-          Log.Info("Unknown subch:{0} Started recording", _subChannelId);
-        }
-
         _dateRecordingStarted = DateTime.Now;
-        _graphState = GraphState.Recording;
       }
-      catch (Exception e)
+      catch (Exception ex)
       {
-        Log.WriteFile("StartRecording failed, cleaning up {0}", e.Message);
-        //cleanup
+        Log.Debug("BaseSubChannel: failed to start recording\r\n{0}", ex.ToString());
         StopRecording();
         return false;
       }
@@ -392,10 +346,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <returns></returns>
     public bool StopRecording()
     {
-      Log.WriteFile("basesubchannel.StopRecording {}", this._subChannelId);
+      Log.Debug("BaseSubChannel: subchannel {0} stop recording", _subChannelId);
       OnStopRecording();
-      _graphState = _timeshiftFileName != "" ? GraphState.TimeShifting : GraphState.Created;
-      _recordingFileName = "";
+      _recordingFileName = String.Empty;
       _dateRecordingStarted = DateTime.MinValue;
       return true;
     }
@@ -408,6 +361,26 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     public void TimeShiftGetCurrentFilePosition(ref Int64 position, ref long bufferId)
     {
       OnGetTimeShiftFilePosition(ref position, ref bufferId);
+    }
+
+    /// <summary>
+    /// Cancel the current tuning process.
+    /// </summary>
+    public virtual void CancelTune()
+    {
+      Log.Debug("BaseSubChannel: subchannel {0} cancel tune", _subChannelId);
+      _cancelTune = true;
+    }
+
+    /// <summary>
+    /// Check if the current tuning process has been cancelled and throw and exception if it has.
+    /// </summary>
+    protected void ThrowExceptionIfTuneCancelled()
+    {
+      if (_cancelTune)
+      {
+        throw new TvExceptionTuneCancelled();
+      }
     }
 
     #endregion
@@ -426,7 +399,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
       {
         for (int i = 0; i < packetCount; ++i)
         {
-          IntPtr packetPtr = new IntPtr(data.ToInt32() + i * 188);
+          IntPtr packetPtr = new IntPtr(data.ToInt64() + i * 188);
           ProcessPacket(packetPtr);
         }
       }
@@ -444,26 +417,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <param name="ptr">pointer to the transport packet</param>
     public void ProcessPacket(IntPtr ptr)
     {
-      if (ptr == IntPtr.Zero) return;
-
-      _packetHeader = _tsHelper.GetHeader(ptr);
-      if (_packetHeader.SyncByte != 0x47)
+      if (_teletextDecoder != null)
       {
-        Log.WriteFile("packet sync error");
-        return;
-      }
-      if (_packetHeader.TransportError)
-      {
-        Log.WriteFile("packet transport error");
-        return;
-      }
-      // teletext
-      //if (_grabTeletext)
-      {
-        if (_teletextDecoder != null)
-        {
-          _teletextDecoder.SaveData(ptr);
-        }
+        _teletextDecoder.SaveData(ptr);
       }
     }
 
@@ -498,22 +454,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// </summary>
     public void Decompose()
     {
-      if (this is AnalogSubChannel)
-      {
-        Log.Info("analog subch:{0} Decompose()", _subChannelId);
-      }
-      else if (this is HDPVRChannel)
-      {
-        Log.Info("HDPVR subch:{0} Decompose", _subChannelId);
-      }
-      else if (this is TvDvbChannel)
-      {
-        Log.Info("DVB subch:{0} Decompose()", _subChannelId);
-      }
-      else
-      {
-        Log.Info("Unknown subch:{0} Decompose()", _subChannelId);
-      }
+      Log.Debug("BaseSubChannel: subchannel {0} decompose", _subChannelId);
 
       if (IsRecording)
       {
@@ -523,15 +464,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
       {
         StopTimeShifting();
       }
-      _timeshiftFileName = "";
-      _recordingFileName = "";
+      _timeshiftFileName = String.Empty;
+      _recordingFileName = String.Empty;
       _dateTimeShiftStarted = DateTime.MinValue;
       _dateRecordingStarted = DateTime.MinValue;
       if (_teletextDecoder != null)
       {
         _teletextDecoder.ClearBuffer();
       }
-      _graphState = GraphState.Created;
       OnDecompose();
     }
 
@@ -552,18 +492,10 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     public abstract void OnAfterTune();
 
     /// <summary>
-    /// Should be called when the graph is about to start
-    /// Resets the state 
-    /// If graph is already running, starts the pmt grabber to grab the
-    /// pmt for the new channel
-    /// </summary>
-    public abstract void OnGraphStart();
-
-    /// <summary>
     /// Should be called when the graph has been started
     /// sets up the pmt grabber to grab the pmt of the channel
     /// </summary>
-    public abstract void OnGraphStarted();
+    public abstract void OnGraphRunning();
 
     /// <summary>
     /// Should be called when graph is about to stop.
@@ -589,7 +521,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
     /// <summary>
     /// A derrived class should start here the timeshifting on the tv card. It will be called from StartTimeshifting()
     /// </summary>
-    protected abstract bool OnStartTimeShifting(string fileName);
+    protected abstract void OnStartTimeShifting(string fileName);
 
     /// <summary>
     /// A derrived class should stop here the timeshifting on the tv card. It will be called from StopTimeshifting()
@@ -620,30 +552,13 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations
 
     #endregion
 
-    #region abstract ITvSubChannel Member
+    #region abstract ITvSubChannel members
 
     /// <summary>
     /// Returns true when unscrambled audio/video is received otherwise false
     /// </summary>
     /// <returns>true of false</returns>
     public abstract bool IsReceivingAudioVideo { get; }
-
-    /// <summary>
-    /// returns true if we record in transport stream mode
-    /// false we record in program stream mode
-    /// </summary>
-    /// <value>true for transport stream, false for program stream.</value>
-    public abstract IVideoStream GetCurrentVideoStream { get; }
-
-    /// <summary>
-    /// returns the list of available audio streams
-    /// </summary>
-    public abstract List<IAudioStream> AvailableAudioStreams { get; }
-
-    /// <summary>
-    /// get/set the current selected audio stream
-    /// </summary>
-    public abstract IAudioStream CurrentAudioStream { get; set; }
 
     #endregion
   }

@@ -605,53 +605,7 @@ namespace Mediaportal.TV.Server.TVControl
 
     #region dynamic properties
 
-    /// <summary>
-    /// Gets the available audio streams.
-    /// </summary>
-    /// <value>The available audio streams.</value>    
-    public IEnumerable<IAudioStream> AvailableAudioStreams
-    {
-      get
-      {
-        if (User.CardId < 0)
-        {
-          return null;
-        }
-        try
-        {
-          RemoteControl.HostName = _server;
-          return GlobalServiceProvider.Get<IControllerService>().AvailableAudioStreams(User.Name);
-        }
-        catch (Exception)
-        {
-          //HandleFailure();
-        }
-        return null;
-      }
-
-    }
-
-    /// <summary>
-    /// Gets the current video stream format.
-    /// </summary>
-    /// <value>The available video streams.</value>
-    public IVideoStream GetCurrentVideoStream(IUser user)
-    {
-      if (User.CardId < 0)
-      {
-        return null;
-      }
-      try
-      {
-        RemoteControl.HostName = _server;
-        return GlobalServiceProvider.Get<IControllerService>().GetCurrentVideoStream(user.Name);
-      }
-      catch (Exception)
-      {
-        //HandleFailure();
-      }
-      return null;
-    }
+   
 
     /// <summary>
     /// returns which schedule is currently being recorded

@@ -33,6 +33,7 @@ using Mediaportal.TV.Server.TVService.Interfaces.CardHandler;
 using Mediaportal.TV.Server.TVService.Interfaces.CardReservation;
 using Mediaportal.TV.Server.TVService.Interfaces.Enums;
 using Mediaportal.TV.Server.TVService.Interfaces.Services;
+using OnAfterTuneDelegate = Mediaportal.TV.Server.TVService.Interfaces.CardHandler.OnAfterTuneDelegate;
 
 namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
 {
@@ -57,7 +58,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public CardTuner(ITvCardHandler cardHandler)
     {
       _cardHandler = cardHandler;
-      _cardHandler.Card.OnNewSubChannelEvent += new OnNewSubChannelDelegate(Card_OnNewSubChannelEvent);
+      _cardHandler.Card.OnNewSubChannelEvent = new OnNewSubChannelDelegate(Card_OnNewSubChannelEvent);
     }
 
     private void Card_OnNewSubChannelEvent(int id)
@@ -474,20 +475,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         OnBeforeTuneEvent(_cardHandler);
       }
 
-      var card = _cardHandler.Card as TvCardBase;
-      if (card != null)
-      {
-        card.AfterTuneEvent -= new TvCardBase.OnAfterTuneDelegate(Card_OnAfterTuneEvent);
-        card.AfterTuneEvent += new TvCardBase.OnAfterTuneDelegate(Card_OnAfterTuneEvent);
-      }
-      else
-      {
-        var hybridCard = _cardHandler.Card as HybridCard;
-        if (hybridCard != null)
-        {
-          hybridCard.AfterTuneEvent = new TvCardBase.OnAfterTuneDelegate(Card_OnAfterTuneEvent);
-        }
-      }
+      _cardHandler.Card.OnAfterTuneEvent = new Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.OnAfterTuneDelegate(CardTuner_OnAfterTuneEvent);
 
       result = TvResult.Succeeded;
       return true;
@@ -506,12 +494,12 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       }
     }
 
-    public event OnAfterCancelTuneDelegate OnAfterCancelTuneEvent;    
-    public event OnAfterTuneDelegate OnAfterTuneEvent;    
+    public event OnAfterCancelTuneDelegate OnAfterCancelTuneEvent;
+    public event OnAfterTuneDelegate OnAfterTuneEvent;
     public event OnBeforeTuneDelegate OnBeforeTuneEvent;
-    
 
-    private void Card_OnAfterTuneEvent()
+
+    private void CardTuner_OnAfterTuneEvent()
     {
       if (OnAfterTuneEvent != null)
       {

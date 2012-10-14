@@ -21,248 +21,16 @@
 using System;
 using System.Runtime.Serialization;
 using DirectShowLib.BDA;
+using Mediaportal.TV.Server.TVDatabase.Entities;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using TvLibrary.Interfaces;
 
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 {
   /// <summary>
-  /// enum describing the DVBS band
-  /// </summary>
-  public enum BandType
-  {
-    /// <summary>
-    /// Ku-Linear - LOF1 9750, LOF2 10600, SW 11700
-    /// Universal LNB - common in Europe
-    /// </summary>
-    Universal = 0,
-    /// <summary>
-    /// Ku-Circular - LOF1 10750
-    /// </summary>
-    Circular = 1,
-    /// <summary>
-    /// C-Band - LOF1 5150
-    /// </summary>
-    CBand = 2,
-    /// <summary>
-    /// North American Bandstacked
-    /// DishPro Ku-Linear Hi(DBS) - LOF1 11250, LOF2 14350
-    /// </summary>
-    NaBandStackedDpKuHi = 3,
-    /// <summary>
-    /// North American Bandstacked
-    /// DishPro Ku-Linear Lo(FSS) - LOF1 10750, LOF2 13850
-    /// </summary>
-    NaBandStackedDpKuLo = 4,
-    /// <summary>
-    /// North American Bandstacked
-    /// Ku-Linear Hi(DBS) - LOF1 11250, LOF2 10675
-    /// </summary>
-    NaBandStackedKuHi = 5,
-    /// <summary>
-    /// North American Bandstacked
-    /// Ku-Linear Lo(FSS) - LOF1 10750, LOF2 10175
-    /// </summary>
-    NaBandStackedKuLo = 6,
-    /// <summary>
-    /// North American Bandstacked
-    /// C-Band LOF1 5150, LOF2 5750
-    /// </summary>
-    NaBandStackedC = 7,
-    /// <summary>
-    /// North American Legacy
-    /// LOF1 11250
-    /// </summary>
-    NaLegacy = 8,
-    /// <summary>
-    /// North American Custom1
-    /// LOF1 11250, LOF2 11250, SW 12700
-    /// </summary>
-    NaCustom1 = 9,
-    /// <summary>
-    /// North American Custom2
-    /// LOF1 11250, LOF2 11250, SW 12200
-    /// </summary>
-    NaCustom2 = 10,
-  }
-
-  /// <summary>
-  /// Class for LNB setup and LNB number
-  /// Helps determin the DVB-S band type and subsequent LNB frequencies
-  /// Also determins if hi band tuning is required
-  /// </summary>
-  public class BandTypeConverter
-  {
-    /// <summary>
-    /// Gets the Antenna Number (or LNB number)
-    /// </summary>
-    /// <param name="channel">holds tuning details for DVB-S</param>
-    /// <returns></returns>
-    public static int GetAntennaNr(DVBSChannel channel)
-    {
-      byte disEqcPort = 0;
-
-      switch (channel.DisEqc)
-      {
-        case DisEqcType.None:
-          disEqcPort = 0; //no diseqc
-          break;
-        case DisEqcType.SimpleA: //simple A
-          disEqcPort = 1;
-          break;
-        case DisEqcType.SimpleB: //simple B
-          disEqcPort = 2;
-          break;
-        case DisEqcType.Level1AA: //Level 1 A/A
-          disEqcPort = 1;
-          break;
-        case DisEqcType.Level1AB: //Level 1 A/B
-          disEqcPort = 2;
-          break;
-        case DisEqcType.Level1BA: //Level 1 B/A
-          disEqcPort = 3;
-          break;
-        case DisEqcType.Level1BB: //Level 1 B/B
-          disEqcPort = 4;
-          break;
-      }
-      return disEqcPort;
-    }
-
-    /// <summary>
-    /// Determins if the tuning paramter is HiBand and if so involke the 22Khz switch.
-    /// </summary>
-    /// <param name="channel">tuning details for specific channel / frequency</param>
-    /// <param name="parameters">holds the parameters needed for tuning channel </param>
-    /// <returns></returns>
-    public static bool IsHiBand(DVBSChannel channel, ScanParameters parameters)
-    {
-      int lof1, lof2, sw;
-      GetDefaultLnbSetup(parameters, channel.BandType, out lof1, out lof2, out sw);
-
-      if (sw == 0)
-      {
-        return false;
-      }
-      return channel.Frequency >= (sw * 1000);
-    }
-
-    /// <summary>
-    /// Gets the default LNB Setup depending on the type chosen.
-    /// </summary>
-    /// <param name="parameters">Satelliet scan parameters</param>
-    /// <param name="band">LNB type i.e. Uiniversal</param>
-    /// <param name="lof1">LNB low frequency</param>
-    /// <param name="lof2">LNB high frequency</param>
-    /// <param name="sw">LNB switch frequency</param>
-    public static void GetDefaultLnbSetup(ScanParameters parameters, BandType band, out int lof1, out int lof2,
-                                          out int sw)
-    {
-      lof1 = lof2 = sw = 0;
-      if (parameters.UseDefaultLnbFrequencies == false)
-      {
-        lof1 = parameters.LnbLowFrequency;
-        lof2 = parameters.LnbHighFrequency;
-        sw = parameters.LnbSwitchFrequency;
-        return;
-      }
-      switch (band)
-      {
-        case BandType.Universal:
-          lof1 = 9750;
-          lof2 = 10600;
-          sw = 11700;
-          break;
-        case BandType.Circular:
-          lof1 = 10750;
-          lof2 = 0;
-          sw = 0;
-          break;
-        case BandType.CBand:
-          lof1 = 5150;
-          lof2 = 0;
-          sw = 0;
-          break;
-        case BandType.NaBandStackedDpKuHi:
-          lof1 = 11250;
-          lof2 = 14350;
-          sw = 0;
-          break;
-        case BandType.NaBandStackedDpKuLo:
-          lof1 = 10750;
-          lof2 = 13850;
-          sw = 0;
-          break;
-        case BandType.NaBandStackedKuHi:
-          lof1 = 11250;
-          lof2 = 10675;
-          sw = 0;
-          break;
-        case BandType.NaBandStackedKuLo:
-          lof1 = 10750;
-          lof2 = 10175;
-          sw = 0;
-          break;
-        case BandType.NaBandStackedC:
-          lof1 = 5150;
-          lof2 = 5750;
-          sw = 0;
-          break;
-        case BandType.NaLegacy:
-          lof1 = 11250;
-          lof2 = 0;
-          sw = 0;
-          break;
-        case BandType.NaCustom1:
-          lof1 = 11250;
-          lof2 = 11250;
-          sw = 12700;
-          break;
-        case BandType.NaCustom2:
-          lof1 = 11250;
-          lof2 = 11250;
-          sw = 12200;
-          break;
-      }
-    }
-  }
-
-  /// <summary>
-  /// enum describing the different DisEqc type
-  /// </summary>
-  public enum DisEqcType
-  {
-    /// <summary>
-    /// diseqc not used
-    /// </summary>
-    None = 0,
-    /// <summary>
-    /// Simple A
-    /// </summary>
-    SimpleA = 1,
-    /// <summary>
-    /// Simple B
-    /// </summary>
-    SimpleB = 2,
-    /// <summary>
-    /// Level 1 A/A
-    /// </summary>
-    Level1AA = 3,
-    /// <summary>
-    /// Level 1 A/B
-    /// </summary>
-    Level1AB = 4,
-    /// <summary>
-    /// Level 1 B/A
-    /// </summary>
-    Level1BA = 5,
-    /// <summary>
-    /// Level 1 B/B
-    /// </summary>
-    Level1BB = 6,
-  } ;
-
-  /// <summary>
-  /// class holding all tuning details for DVBS
+  /// A class capable of holding the tuning parameter details required to tune a DVB-S or DVB-S2 channel.
   /// </summary>
   [DataContract]
   public class DVBSChannel : DVBBaseChannel
@@ -270,19 +38,19 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     #region variables
 
     [DataMember]
-    private Polarisation _polarisation;
+    private DiseqcPort _diseqc = DiseqcPort.None;
 
     [DataMember]
-    private int _symbolRate;
+    private LnbType _lnbType = null;
 
     [DataMember]
-    private int _switchingFrequency;
+    private int _satelliteIndex = -1;
 
     [DataMember]
-    private DisEqcType _disEqc;
+    private Polarisation _polarisation = Polarisation.NotSet;
 
     [DataMember]
-    private BandType _bandType;
+    private int _symbolRate = -1;
 
     [DataMember]
     private ModulationType _modulation = ModulationType.ModQpsk;
@@ -296,67 +64,69 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     [DataMember]
     private RollOff _rollOff = RollOff.NotSet;
 
-    [DataMember]
-    private int _satelliteIndex;
-
     #endregion
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DVBSChannel"/> class.
-    /// </summary>
-    /// <param name="chan">The chan.</param>
-    public DVBSChannel(DVBSChannel chan)
-      : base(chan)
-    {
-      _polarisation = chan.Polarisation;
-      _symbolRate = chan.SymbolRate;
-      _switchingFrequency = chan.SwitchingFrequency;
-      DisEqc = chan.DisEqc;
-      _bandType = chan.BandType;
-      _modulation = chan.ModulationType;
-      _innerFecRate = chan.InnerFecRate;
-      _pilot = chan.Pilot;
-      _rollOff = chan.Rolloff;
-      _satelliteIndex = chan.SatelliteIndex;
-    }
+    #region constructors
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DVBSChannel"/> class.
+    /// Initialise a new instance of the <see cref="DVBSChannel"/> class.
     /// </summary>
     public DVBSChannel()
+      : base()
     {
-      SwitchingFrequency = 0;
-      DisEqc = DisEqcType.SimpleA;
-      _bandType = BandType.Universal;
+      _diseqc = DiseqcPort.None;
+      _lnbType = null;
       _satelliteIndex = -1;
+      _polarisation = Polarisation.NotSet;
+      _symbolRate = -1;
       _modulation = ModulationType.ModQpsk;
       _innerFecRate = BinaryConvolutionCodeRate.RateNotSet;
       _pilot = Pilot.NotSet;
       _rollOff = RollOff.NotSet;
     }
 
+    /// <summary>
+    /// Initialise a new instance of the <see cref="DVBSChannel"/> class using an existing instance.
+    /// </summary>
+    /// <param name="channel">The existing channel instance.</param>
+    public DVBSChannel(DVBSChannel channel)
+      : base(channel)
+    {
+      _diseqc = channel.Diseqc;
+      _lnbType = channel.LnbType;
+      _satelliteIndex = channel.SatelliteIndex;
+      _polarisation = channel.Polarisation;
+      _symbolRate = channel.SymbolRate;
+      _modulation = channel.ModulationType;
+      _innerFecRate = channel.InnerFecRate;
+      _pilot = channel.Pilot;
+      _rollOff = channel.RollOff;
+    }
+
+    #endregion
+
     #region properties
 
     /// <summary>
-    /// gets/sets the InnerFEC Rate for this channel
+    /// Get/set the DiSEqC switch setting used to receive the channel.
     /// </summary>
-    public BinaryConvolutionCodeRate InnerFecRate
+    public DiseqcPort Diseqc
     {
-      get { return _innerFecRate; }
-      set { _innerFecRate = value; }
+      get { return _diseqc; }
+      set { _diseqc = value; }
     }
 
     /// <summary>
-    /// gets/sets the Modulation type for this channel
+    /// Get/set the type of LNB used to receive the channel.
     /// </summary>
-    public ModulationType ModulationType
+    public LnbType LnbType
     {
-      get { return _modulation; }
-      set { _modulation = value; }
+      get { return _lnbType; }
+      set { _lnbType = value; }
     }
 
     /// <summary>
-    /// gets/sets the Satellite Index for this channel
+    /// Get/set the index for the channel's satellite.
     /// </summary>
     public int SatelliteIndex
     {
@@ -365,16 +135,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the BandType for this channel
-    /// </summary>
-    public BandType BandType
-    {
-      get { return _bandType; }
-      set { _bandType = value; }
-    }
-
-    /// <summary>
-    /// gets/sets the Polarisation for this channel
+    /// Get/set the polarisation for the channel's transponder.
     /// </summary>
     public Polarisation Polarisation
     {
@@ -383,7 +144,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the SymbolRate for this channel
+    /// Get/set the symbol rate for the channel's transponder. The symbol rate unit is ks/s.
     /// </summary>
     public int SymbolRate
     {
@@ -392,25 +153,25 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the LNB Switch frequency for this channel
+    /// Get/set the modulation scheme for the channel's transponder.
     /// </summary>
-    public int SwitchingFrequency
+    public ModulationType ModulationType
     {
-      get { return _switchingFrequency; }
-      set { _switchingFrequency = value; }
+      get { return _modulation; }
+      set { _modulation = value; }
     }
 
     /// <summary>
-    /// gets/sets the DiSEqC setting for this channel
+    /// Get/set the inner FEC rate for the channel's transponder.
     /// </summary>
-    public DisEqcType DisEqc
+    public BinaryConvolutionCodeRate InnerFecRate
     {
-      get { return _disEqc; }
-      set { _disEqc = value; }
+      get { return _innerFecRate; }
+      set { _innerFecRate = value; }
     }
 
     /// <summary>
-    /// gets/sets the Pilot setting for this channel
+    /// Get/set the DVB-S2 pilot signal setting for the channel's transponder.
     /// </summary>
     public Pilot Pilot
     {
@@ -419,9 +180,9 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     }
 
     /// <summary>
-    /// gets/sets the Roll-Off setting for this channel
+    /// Get/set the DVB-S2 roll-off setting for the channel's transponder.
     /// </summary>
-    public RollOff Rolloff
+    public RollOff RollOff
     {
       get { return _rollOff; }
       set { _rollOff = value; }
@@ -429,31 +190,34 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
 
     #endregion
 
+    #region object overrides
+
     /// <summary>
-    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// Get a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>
     /// </returns>
     public override string ToString()
     {
       string line =
         String.Format(
-          "DVBS:{0} SymbolRate:{1} Modulation:{2} Polarisation:{3} InnerFecRate:{4} DisEqc:{5} band:{6} Pilot:{7} RollOff:{8}",
-          base.ToString(), SymbolRate, ModulationType, Polarisation, InnerFecRate, DisEqc, BandType, Pilot, Rolloff);
+          "DVBS:{0} SymbolRate:{1} Modulation:{2} Polarisation:{3} InnerFecRate:{4} DiSEqC:{5} band:{6} Pilot:{7} RollOff:{8}",
+          base.ToString(), SymbolRate, ModulationType, Polarisation, InnerFecRate, Diseqc, LnbType, Pilot, RollOff);
       return line;
     }
 
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+    /// Determine whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
     /// <returns>
-    /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
+    /// <c>true</c> if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>, otherwise <c>false</c>
     /// </returns>
     public override bool Equals(object obj)
     {
-      if ((obj as DVBSChannel) == null)
+      DVBSChannel ch = obj as DVBSChannel;
+      if (ch == null)
       {
         return false;
       }
@@ -461,44 +225,40 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return false;
       }
-      DVBSChannel ch = obj as DVBSChannel;
-      if (ch.Polarisation != Polarisation)
+
+      if (ch.Diseqc != _diseqc)
       {
         return false;
       }
-      if (ch.SatelliteIndex != SatelliteIndex)
+      if (ch.LnbType != _lnbType)
       {
         return false;
       }
-      if (ch.SymbolRate != SymbolRate)
+      if (ch.SatelliteIndex != _satelliteIndex)
       {
         return false;
       }
-      if (ch.SwitchingFrequency != SwitchingFrequency)
+      if (ch.Polarisation != _polarisation)
       {
         return false;
       }
-      if (ch.DisEqc != DisEqc)
+      if (ch.SymbolRate != _symbolRate)
       {
         return false;
       }
-      if (ch.BandType != BandType)
+      if (ch.ModulationType != _modulation)
       {
         return false;
       }
-      if (ch.ModulationType != ModulationType)
+      if (ch.InnerFecRate != _innerFecRate)
       {
         return false;
       }
-      if (ch.InnerFecRate != InnerFecRate)
+      if (ch.Pilot != _pilot)
       {
         return false;
       }
-      if (ch.Pilot != Pilot)
-      {
-        return false;
-      }
-      if (ch.Rolloff != Rolloff)
+      if (ch.RollOff != _rollOff)
       {
         return false;
       }
@@ -509,22 +269,40 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
     /// <summary>
     /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
     /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"></see>.
-    /// </returns>
+    /// <returns>a hash code for the current <see cref="T:System.Object"></see></returns>
     public override int GetHashCode()
     {
-      return base.GetHashCode() ^ _polarisation.GetHashCode() ^ _symbolRate.GetHashCode() ^
-             _switchingFrequency.GetHashCode() ^ _disEqc.GetHashCode() ^ _bandType.GetHashCode()
-             ^ SatelliteIndex.GetHashCode() ^ _modulation.GetHashCode() ^ _innerFecRate.GetHashCode() ^
-             _pilot.GetHashCode() ^ _rollOff.GetHashCode();
+      return base.GetHashCode() ^ _diseqc.GetHashCode() ^ _lnbType.GetHashCode() ^
+            _satelliteIndex.GetHashCode() ^ _polarisation.GetHashCode() ^ _symbolRate.GetHashCode() ^
+            _modulation.GetHashCode() ^ _innerFecRate.GetHashCode() ^ _pilot.GetHashCode() ^
+            _rollOff.GetHashCode();
     }
 
+    #endregion
+
+    #region ICloneable member
+
     /// <summary>
-    /// Checks if the given channel and this instance are on the different transponder
+    /// Clone the channel instance.
     /// </summary>
-    /// <param name="channel">Channel to check</param>
-    /// <returns>true, if the channels are on the same transponder</returns>
+    /// <returns>a shallow clone of the channel instance</returns>
+    public override object Clone()
+    {
+      DVBSChannel ch = (DVBSChannel)this.MemberwiseClone();
+      if (this.LnbType != null)
+      {
+        ch.LnbType = this.LnbType.Clone();
+      }
+      return ch;
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Check if the given channel and this instance are on different transponders.
+    /// </summary>
+    /// <param name="channel">The channel to check.</param>
+    /// <returns><c>false</c> if the channels are on the same transponder, otherwise <c>true</c></returns>
     public override bool IsDifferentTransponder(IChannel channel)
     {
       DVBSChannel dvbsChannel = channel as DVBSChannel;
@@ -532,14 +310,91 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels
       {
         return true;
       }
-      return dvbsChannel.Frequency != Frequency ||
-             dvbsChannel.Polarisation != Polarisation ||
-             dvbsChannel.ModulationType != ModulationType ||
-             dvbsChannel.SatelliteIndex != SatelliteIndex ||
-             dvbsChannel.InnerFecRate != InnerFecRate ||
-             dvbsChannel.Pilot != Pilot ||
-             dvbsChannel.Rolloff != Rolloff ||
-             dvbsChannel.DisEqc != DisEqc;
+      return dvbsChannel.Diseqc != _diseqc ||
+             dvbsChannel.LnbType != _lnbType ||
+             dvbsChannel.SatelliteIndex != _satelliteIndex ||
+             dvbsChannel.Frequency != Frequency ||
+             dvbsChannel.Polarisation != _polarisation ||
+             dvbsChannel.SymbolRate != _symbolRate ||
+             dvbsChannel.ModulationType != _modulation ||
+             dvbsChannel.InnerFecRate != _innerFecRate ||
+             dvbsChannel.Pilot != _pilot ||
+             dvbsChannel.RollOff != _rollOff;
+    }
+
+    /// <summary>
+    /// Get a channel instance with properties set to enable tuning of this channel.
+    /// </summary>
+    /// <returns>a channel instance with parameters adjusted as necessary</returns>
+    public override IChannel GetTuningChannel()
+    {
+      IChannel clone = (IChannel)this.Clone();
+      DVBSChannel dvbsChannel = clone as DVBSChannel;
+      if (dvbsChannel == null)
+      {
+        return clone;
+      }
+
+      // 1: Log the default frequency settings for the LNB.
+      Log.Debug("DvbsChannel: LNB settings, low = {0} kHz, high = {1} kHz, switch = {2} kHz, bandstacked = {3}, toroidal = {4}, polarisation = {5}",
+          dvbsChannel.LnbType.LowBandFrequency, dvbsChannel.LnbType.HighBandFrequency, dvbsChannel.LnbType.SwitchFrequency,
+          dvbsChannel.LnbType.IsBandStacked, dvbsChannel.LnbType.IsToroidal, dvbsChannel.Polarisation);
+
+      // 2: Toroidal LNB handling.
+      // LNBs mounted on a toroidal dish require circular polarities to be inverted. Note that it is important to do
+      // this before the bandstacked LNB logic.
+      if (dvbsChannel.LnbType.IsToroidal)
+      {
+        if (dvbsChannel.Polarisation == Polarisation.CircularL)
+        {
+          dvbsChannel.Polarisation = Polarisation.CircularR;
+        }
+        else if (dvbsChannel.Polarisation == Polarisation.CircularR)
+        {
+          dvbsChannel.Polarisation = Polarisation.CircularL;
+        }
+      }
+
+      // 3: Bandstacked LNB handling.
+      // For bandstacked LNBs, if the transponder polarisation is horizontal or circular left then we
+      // should use the nominal high oscillator frequency. In addition, we should always supply bandstacked
+      // LNBs with 18 V for reliable operation.
+      if (dvbsChannel.LnbType.IsBandStacked)
+      {
+        if (dvbsChannel.Polarisation == Polarisation.LinearH || dvbsChannel.Polarisation == Polarisation.CircularL)
+        {
+          dvbsChannel.LnbType.LowBandFrequency = dvbsChannel.LnbType.HighBandFrequency;
+        }
+        dvbsChannel.LnbType.HighBandFrequency = dvbsChannel.LnbType.LowBandFrequency + 500000;
+        dvbsChannel.Polarisation = Polarisation.LinearH;
+      }
+
+      // A note about LNB settings...
+      // The LNB settings in the database have been set *very* intentionally based on the following assumptions and
+      // information.
+      // Golden rule: you should never pass zero to a BDA tuner driver for any LNB frequency setting.
+      // Very often people who don't know any better will set the high oscillator frequency and/or switch frequency
+      // for single oscillator LNBs to zero to indicate that they are irrelevant. Driver behaviour with respect to
+      // the 22 kHz tone should be considered undefined in that situation. In some cases the driver behaviour wouldn't
+      // matter, however consider:
+      // - some single oscillator LNBs have been known to respond to the 22 kHz tone
+      // - the tone may degrade the signal quality
+      // - the 22 kHz tone state is still important in an environment with mixed LNB types or 22 kHz tone switches
+      // 
+      // In the database, we set the high oscillator frequency to [low LOF] + 500000 kHz for single oscillator LNBs.
+      // Our intention is to ensure that the low and high oscillator frequencies are different as some drivers (for
+      // example Anysee E7, SkyStar 2 [BDA]) don't turn the 22 kHz tone on or off (!!!) if the frequencies are not
+      // different. Other drivers (for example KNC TV-Station PCI) require that the frequencies be the same in order
+      // to turn the 22 kHz tone off - these drivers should be handled with plugins. Note that the 500000 kHz value
+      // is arbitrary.
+      // In the database, we also set the switch frequency to 18000000 kHz when the 22 kHz tone should be turned off.
+      // This value is *not* arbitrary. Some drivers (for example Genpix SkyWalker) will treat 20 GHz as a signal to
+      // always use high voltage (useful for bandstacked LNBs).
+
+      Log.Debug("DvbsChannel: translated LNB settings, low = {0} kHz, high = {1} kHz, switch = {2} kHz, polarisation = {3}",
+          dvbsChannel.LnbType.LowBandFrequency, dvbsChannel.LnbType.HighBandFrequency, dvbsChannel.LnbType.SwitchFrequency,
+          dvbsChannel.Polarisation);
+      return dvbsChannel;
     }
   }
 }

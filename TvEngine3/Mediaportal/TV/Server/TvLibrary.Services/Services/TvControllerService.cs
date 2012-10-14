@@ -780,25 +780,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Services
       Service.CopyTimeShiftFile(position1, bufferFile1, position2, bufferFile2, recordingFile);
     }
 
-    /// <summary>
-    /// returns the list of available audio streams for the card specified
-    /// </summary>
-    /// <param name="userName"> </param>
-    /// <returns>List containing all audio streams</returns>
-    public IList<IAudioStream> AvailableAudioStreams(string userName)
-    {
-      return Service.AvailableAudioStreams(userName);
-    }
-
-    /// <summary>
-    /// returns the current video stream on the virtual card. 
-    /// </summary>
-    /// <param name="userName"> </param>
-    /// <returns>List containing all audio streams</returns>
-    public IVideoStream GetCurrentVideoStream(string userName)
-    {
-      return Service.GetCurrentVideoStream(userName);
-    }
+  
 
     /// <summary>
     /// Stops the card.

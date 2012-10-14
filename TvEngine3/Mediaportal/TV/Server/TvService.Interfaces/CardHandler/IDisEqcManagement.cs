@@ -1,4 +1,5 @@
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 
 namespace Mediaportal.TV.Server.TVService.Interfaces.CardHandler
 {

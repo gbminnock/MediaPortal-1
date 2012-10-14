@@ -105,9 +105,9 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       //lets check if stream is initially scrambled, if it is and the card has no CA, then we are unable to decrypt stream.
       if (_cardHandler.IsScrambled(user.Name))
       {
-        if (!_cardHandler.HasCA)
+        if (!_cardHandler.IsConditionalAccessSupported)
         {
-          Log.Write("card: IsScrambled - return scrambled, since card has no CAM.");
+          Log.Write("card: WaitForTimeShiftFile - return scrambled, since the device does not support conditional access");
           isScrambled = true;
         }
       }

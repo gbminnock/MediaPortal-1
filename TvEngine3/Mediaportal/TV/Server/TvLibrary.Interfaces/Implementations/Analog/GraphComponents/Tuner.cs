@@ -79,7 +79,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Analog.Grap
 
     #region cotr
 
-    private Tuner() {}
+    private Tuner() { }
 
     #endregion
 

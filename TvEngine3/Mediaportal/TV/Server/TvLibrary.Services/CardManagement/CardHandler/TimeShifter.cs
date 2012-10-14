@@ -244,7 +244,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
             if (subchannel != null)
             {
               _subchannel = subchannel;
-              Log.Write("card: CAM enabled : {0}", _cardHandler.HasCA);
+              Log.Write("card: CAM enabled : {0}", _cardHandler.IsConditionalAccessSupported);
               AttachAudioVideoEventHandler(subchannel);
               if (subchannel.IsTimeShifting)
               {

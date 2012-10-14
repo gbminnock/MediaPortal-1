@@ -21,21 +21,23 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Xml;
 using System.Windows.Forms;
-using Mediaportal.TV.Server.SetupControls;
-using Mediaportal.TV.Server.TVDatabase.Entities.Enums;
-using Mediaportal.TV.Server.TVDatabase.Entities;
-using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
-using Mediaportal.TV.Server.TVLibrary.Interfaces;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Countries;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
-using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using TvControl;
 using DirectShowLib;
+using Gentle.Framework;
 using DirectShowLib.BDA;
-using Mediaportal.TV.Server.TVService.ServiceAgents;
+using TvDatabase;
+using TvLibrary;
+using TvLibrary.Log;
+using TvLibrary.Interfaces;
+using TvLibrary.Interfaces.Device;
+using TvLibrary.Implementations;
+using TvLibrary.Channels;
+using MediaPortal.UserInterface.Controls;
 
-namespace Mediaportal.TV.Server.SetupTV.Sections
+namespace SetupTv.Sections
 {
   public partial class ImportExport : SectionSettings
   {
@@ -89,26 +91,30 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       XmlDocument xmlDoc = new XmlDocument();
       XmlNode rootElement = xmlDoc.CreateElement("tvserver");
       AddAttribute(rootElement, "version", "1.0");
+
       XmlNode nodeServers = xmlDoc.CreateElement("servers");
-      
+      IList<Server> servers = Server.ListAll();
+      foreach (Server server in servers)
       {
         XmlNode nodeServer = xmlDoc.CreateElement("server");
-        AddAttribute(nodeServer, "HostName", ServiceAgents.SettingServiceAgent.GetSetting("hostname").value);                
+        AddAttribute(nodeServer, "HostName", server.HostName);
+        AddAttribute(nodeServer, "IdServer", server.IdServer);
+        AddAttribute(nodeServer, "IsMaster", server.IsMaster);
 
         XmlNode nodeCards = xmlDoc.CreateElement("cards");
-        IList<Card> cards = ServiceAgents.CardServiceAgent.ListAllCards();
+        IList<Card> cards = Card.ListAll();
         foreach (Card card in cards)
         {
           XmlNode nodeCard = xmlDoc.CreateElement("card");
-          AddAttribute(nodeCard, "IdCard", card.idCard);
-          AddAttribute(nodeCard, "DevicePath", card.devicePath);
-          AddAttribute(nodeCard, "Enabled", card.enabled);
-          AddAttribute(nodeCard, "CamType", card.camType);
-          AddAttribute(nodeCard, "GrabEPG", card.grabEPG);
-          AddAttribute(nodeCard, "LastEpgGrab", card.lastEpgGrab);
-          AddAttribute(nodeCard, "Name", card.name);
-          AddAttribute(nodeCard, "Priority", card.priority);
-          AddAttribute(nodeCard, "RecordingFolder", card.recordingFolder);
+          AddAttribute(nodeCard, "IdCard", card.IdCard);
+          AddAttribute(nodeCard, "DevicePath", card.DevicePath);
+          AddAttribute(nodeCard, "Enabled", card.Enabled);
+          AddAttribute(nodeCard, "CamType", card.CamType);
+          AddAttribute(nodeCard, "GrabEPG", card.GrabEPG);
+          AddAttribute(nodeCard, "LastEpgGrab", card.LastEpgGrab);
+          AddAttribute(nodeCard, "Name", card.Name);
+          AddAttribute(nodeCard, "Priority", card.Priority);
+          AddAttribute(nodeCard, "RecordingFolder", card.RecordingFolder);
           nodeCards.AppendChild(nodeCard);
         }
         nodeServer.AppendChild(nodeCards);
@@ -117,7 +123,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       rootElement.AppendChild(nodeServers);
 
       XmlNode nodechannels = xmlDoc.CreateElement("channels");
-      IList<Channel> channels = ServiceAgents.ChannelServiceAgent.ListAllChannels();
+      IList<Channel> channels = Channel.ListAll();
       foreach (Channel channel in channels)
       {
         // Only export TV or radio channels if the corresponding checkbox was checked
@@ -125,63 +131,63 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           continue;
 
         XmlNode nodechannel = xmlDoc.CreateElement("channel");
-        AddAttribute(nodechannel, "GrabEpg", channel.grabEpg);
-        AddAttribute(nodechannel, "IdChannel", channel.idChannel);
-        AddAttribute(nodechannel, "MediaType", (int)channel.mediaType); 
-        AddAttribute(nodechannel, "LastGrabTime", channel.lastGrabTime);
-        AddAttribute(nodechannel, "SortOrder", channel.sortOrder);
-        AddAttribute(nodechannel, "TimesWatched", channel.timesWatched);
-        AddAttribute(nodechannel, "TotalTimeWatched", channel.totalTimeWatched);
-        AddAttribute(nodechannel, "VisibleInGuide", channel.visibleInGuide);
-        AddAttribute(nodechannel, "DisplayName", channel.displayName);
+        AddAttribute(nodechannel, "GrabEpg", channel.GrabEpg);
+        AddAttribute(nodechannel, "IdChannel", channel.IdChannel);
+        AddAttribute(nodechannel, "IsRadio", channel.IsRadio);
+        AddAttribute(nodechannel, "IsTv", channel.IsTv);
+        AddAttribute(nodechannel, "LastGrabTime", channel.LastGrabTime);
+        AddAttribute(nodechannel, "SortOrder", channel.SortOrder);
+        AddAttribute(nodechannel, "TimesWatched", channel.TimesWatched);
+        AddAttribute(nodechannel, "TotalTimeWatched", channel.TotalTimeWatched);
+        AddAttribute(nodechannel, "VisibleInGuide", channel.VisibleInGuide);
+        AddAttribute(nodechannel, "DisplayName", channel.DisplayName);
 
         XmlNode nodeMaps = xmlDoc.CreateElement("mappings");
-        foreach (ChannelMap map in channel.ChannelMaps)
+        foreach (ChannelMap map in channel.ReferringChannelMap())
         {
           XmlNode nodeMap = xmlDoc.CreateElement("map");
-          AddAttribute(nodeMap, "IdCard", map.idCard);
-          AddAttribute(nodeMap, "IdChannel", map.idChannel);
-          AddAttribute(nodeMap, "IdChannelMap", map.idChannelMap);
+          AddAttribute(nodeMap, "IdCard", map.IdCard);
+          AddAttribute(nodeMap, "IdChannel", map.IdChannel);
+          AddAttribute(nodeMap, "IdChannelMap", map.IdChannelMap);
           nodeMaps.AppendChild(nodeMap);
         }
         nodechannel.AppendChild(nodeMaps);
 
         XmlNode nodeTuningDetails = xmlDoc.CreateElement("TuningDetails");
-        foreach (TuningDetail detail in channel.TuningDetails)
+        foreach (TuningDetail detail in channel.ReferringTuningDetail())
         {
           XmlNode nodeTune = xmlDoc.CreateElement("tune");
-          AddAttribute(nodeTune, "IdChannel", detail.idChannel);
-          AddAttribute(nodeTune, "IdTuning", detail.idTuning);
-          AddAttribute(nodeTune, "Bandwidth", detail.bandwidth);
-          AddAttribute(nodeTune, "ChannelNumber", detail.channelNumber);
-          AddAttribute(nodeTune, "ChannelType", detail.channelType);
-          AddAttribute(nodeTune, "CountryId", detail.countryId);
-          AddAttribute(nodeTune, "Diseqc", detail.diseqc);
-          AddAttribute(nodeTune, "FreeToAir", detail.freeToAir);
-          AddAttribute(nodeTune, "Frequency", detail.frequency);
-          AddAttribute(nodeTune, "MajorChannel", detail.majorChannel);
-          AddAttribute(nodeTune, "MinorChannel", detail.minorChannel);
-          AddAttribute(nodeTune, "Modulation", detail.modulation);
-          AddAttribute(nodeTune, "Name", detail.name);
-          AddAttribute(nodeTune, "NetworkId", detail.networkId);
-          AddAttribute(nodeTune, "PmtPid", detail.pmtPid);
-          AddAttribute(nodeTune, "Polarisation", detail.polarisation);
-          AddAttribute(nodeTune, "Provider", detail.provider);
-          AddAttribute(nodeTune, "ServiceId", detail.serviceId);
-          AddAttribute(nodeTune, "SwitchingFrequency", detail.switchingFrequency);
-          AddAttribute(nodeTune, "Symbolrate", detail.symbolrate);
-          AddAttribute(nodeTune, "TransportId", detail.transportId);
-          AddAttribute(nodeTune, "TuningSource", detail.tuningSource);
-          AddAttribute(nodeTune, "VideoSource", detail.videoSource);
-          AddAttribute(nodeTune, "AudioSource", detail.audioSource);
-          AddAttribute(nodeTune, "IsVCRSignal", detail.isVCRSignal);
-          AddAttribute(nodeTune, "SatIndex", detail.satIndex);
-          AddAttribute(nodeTune, "InnerFecRate", detail.innerFecRate);
-          AddAttribute(nodeTune, "Band", detail.band);
-          AddAttribute(nodeTune, "Pilot", detail.pilot);
-          AddAttribute(nodeTune, "RollOff", detail.rollOff);
-          AddAttribute(nodeTune, "Url", detail.url);
-          AddAttribute(nodeTune, "Bitrate", detail.bitrate);
+          AddAttribute(nodeTune, "IdChannel", detail.IdChannel);
+          AddAttribute(nodeTune, "IdTuning", detail.IdTuning);
+          AddAttribute(nodeTune, "Bandwidth", detail.Bandwidth);
+          AddAttribute(nodeTune, "ChannelNumber", detail.ChannelNumber);
+          AddAttribute(nodeTune, "ChannelType", detail.ChannelType);
+          AddAttribute(nodeTune, "CountryId", detail.CountryId);
+          AddAttribute(nodeTune, "Diseqc", detail.Diseqc);
+          AddAttribute(nodeTune, "FreeToAir", detail.FreeToAir);
+          AddAttribute(nodeTune, "Frequency", detail.Frequency);
+          AddAttribute(nodeTune, "MajorChannel", detail.MajorChannel);
+          AddAttribute(nodeTune, "MinorChannel", detail.MinorChannel);
+          AddAttribute(nodeTune, "Modulation", detail.Modulation);
+          AddAttribute(nodeTune, "Name", detail.Name);
+          AddAttribute(nodeTune, "NetworkId", detail.NetworkId);
+          AddAttribute(nodeTune, "PmtPid", detail.PmtPid);
+          AddAttribute(nodeTune, "Polarisation", detail.Polarisation);
+          AddAttribute(nodeTune, "Provider", detail.Provider);
+          AddAttribute(nodeTune, "ServiceId", detail.ServiceId);
+          AddAttribute(nodeTune, "Symbolrate", detail.Symbolrate);
+          AddAttribute(nodeTune, "TransportId", detail.TransportId);
+          AddAttribute(nodeTune, "TuningSource", detail.TuningSource);
+          AddAttribute(nodeTune, "VideoSource", detail.VideoSource);
+          AddAttribute(nodeTune, "AudioSource", detail.AudioSource);
+          AddAttribute(nodeTune, "IsVCRSignal", detail.IsVCRSignal);
+          AddAttribute(nodeTune, "SatIndex", detail.SatIndex);
+          AddAttribute(nodeTune, "InnerFecRate", detail.InnerFecRate);
+          AddAttribute(nodeTune, "IdLnbType", detail.IdLnbType);
+          AddAttribute(nodeTune, "Pilot", detail.Pilot);
+          AddAttribute(nodeTune, "RollOff", detail.RollOff);
+          AddAttribute(nodeTune, "Url", detail.Url);
+          AddAttribute(nodeTune, "Bitrate", detail.Bitrate);
           nodeTuningDetails.AppendChild(nodeTune);
         }
         nodechannel.AppendChild(nodeTuningDetails);
@@ -194,24 +200,24 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       if (exportschedules)
       {
         XmlNode nodeSchedules = xmlDoc.CreateElement("schedules");
-        IList<Schedule> schedules = ServiceAgents.ScheduleServiceAgent.ListAllSchedules();
+        IList<Schedule> schedules = Schedule.ListAll();
         foreach (Schedule schedule in schedules)
         {
           XmlNode nodeSchedule = xmlDoc.CreateElement("schedule");
-          AddAttribute(nodeSchedule, "ChannelName", schedule.Channel.displayName);
-          AddAttribute(nodeSchedule, "ProgramName", schedule.programName);
-          AddAttribute(nodeSchedule, "StartTime", schedule.startTime);
-          AddAttribute(nodeSchedule, "EndTime", schedule.endTime);
-          AddAttribute(nodeSchedule, "KeepDate", schedule.keepDate);
-          AddAttribute(nodeSchedule, "PreRecordInterval", schedule.preRecordInterval);
-          AddAttribute(nodeSchedule, "PostRecordInterval", schedule.postRecordInterval);
-          AddAttribute(nodeSchedule, "Priority", schedule.priority);
-          AddAttribute(nodeSchedule, "Quality", schedule.quality);
-          AddAttribute(nodeSchedule, "Directory", schedule.directory);
-          AddAttribute(nodeSchedule, "KeepMethod", schedule.keepMethod);
-          AddAttribute(nodeSchedule, "MaxAirings", schedule.maxAirings);
-          AddAttribute(nodeSchedule, "ScheduleType", schedule.scheduleType);
-          AddAttribute(nodeSchedule, "Series", schedule.series);
+          AddAttribute(nodeSchedule, "ChannelName", schedule.ReferencedChannel().DisplayName);
+          AddAttribute(nodeSchedule, "ProgramName", schedule.ProgramName);
+          AddAttribute(nodeSchedule, "StartTime", schedule.StartTime);
+          AddAttribute(nodeSchedule, "EndTime", schedule.EndTime);
+          AddAttribute(nodeSchedule, "KeepDate", schedule.KeepDate);
+          AddAttribute(nodeSchedule, "PreRecordInterval", schedule.PreRecordInterval);
+          AddAttribute(nodeSchedule, "PostRecordInterval", schedule.PostRecordInterval);
+          AddAttribute(nodeSchedule, "Priority", schedule.Priority);
+          AddAttribute(nodeSchedule, "Quality", schedule.Quality);
+          AddAttribute(nodeSchedule, "Directory", schedule.Directory);
+          AddAttribute(nodeSchedule, "KeepMethod", schedule.KeepMethod);
+          AddAttribute(nodeSchedule, "MaxAirings", schedule.MaxAirings);          
+          AddAttribute(nodeSchedule, "ScheduleType", schedule.ScheduleType);
+          AddAttribute(nodeSchedule, "Series", schedule.Series);
           nodeSchedules.AppendChild(nodeSchedule);
         }
         rootElement.AppendChild(nodeSchedules);
@@ -221,18 +227,18 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       if (exporttvgroups)
       {
         XmlNode nodeChannelGroups = xmlDoc.CreateElement("channelgroups");
-        IList<ChannelGroup> channelgroups = ServiceAgents.ChannelGroupServiceAgent.ListAllChannelGroups();
+        IList<ChannelGroup> channelgroups = ChannelGroup.ListAll();
         foreach (ChannelGroup group in channelgroups)
         {
           XmlNode nodeChannelGroup = xmlDoc.CreateElement("channelgroup");
-          AddAttribute(nodeChannelGroup, "GroupName", group.groupName);
-          AddAttribute(nodeChannelGroup, "SortOrder", group.sortOrder.ToString());
+          AddAttribute(nodeChannelGroup, "GroupName", group.GroupName);
+          AddAttribute(nodeChannelGroup, "SortOrder", group.SortOrder.ToString());
           XmlNode nodeGroupMap = xmlDoc.CreateElement("mappings");
-          IList<GroupMap> maps = group.GroupMaps;
+          IList<GroupMap> maps = group.ReferringGroupMap();
           foreach (GroupMap map in maps)
           {
             XmlNode nodeMap = xmlDoc.CreateElement("map");
-            AddAttribute(nodeMap, "ChannelName", map.Channel.displayName);
+            AddAttribute(nodeMap, "ChannelName", map.ReferencedChannel().DisplayName);
             AddAttribute(nodeMap, "SortOrder", map.SortOrder.ToString());
             nodeGroupMap.AppendChild(nodeMap);
           }
@@ -245,26 +251,26 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
       // exporting radio channel groups
       if (exportradiogroups)
       {
-        XmlNode nodeChannelGroups = xmlDoc.CreateElement("radiochannelgroups");
-        IList<ChannelGroup> radiochannelgroups = ServiceAgents.ChannelGroupServiceAgent.ListAllChannelGroups();
-        foreach (ChannelGroup radiogroup in radiochannelgroups)
+        XmlNode nodeRadioChannelGroups = xmlDoc.CreateElement("radiochannelgroups");
+        IList<RadioChannelGroup> radiochannelgroups = RadioChannelGroup.ListAll();
+        foreach (RadioChannelGroup radiogroup in radiochannelgroups)
         {
-          XmlNode nodeChannelGroup = xmlDoc.CreateElement("radiochannelgroup");
-          AddAttribute(nodeChannelGroup, "GroupName", radiogroup.groupName);
-          AddAttribute(nodeChannelGroup, "SortOrder", radiogroup.sortOrder.ToString());
-          XmlNode nodeGroupMap = xmlDoc.CreateElement("mappings");
-          IList<GroupMap> maps = radiogroup.GroupMaps;
-          foreach (GroupMap map in maps)
+          XmlNode nodeRadioChannelGroup = xmlDoc.CreateElement("radiochannelgroup");
+          AddAttribute(nodeRadioChannelGroup, "GroupName", radiogroup.GroupName);
+          AddAttribute(nodeRadioChannelGroup, "SortOrder", radiogroup.SortOrder.ToString());
+          XmlNode nodeRadioGroupMap = xmlDoc.CreateElement("mappings");
+          IList<RadioGroupMap> maps = radiogroup.ReferringRadioGroupMap();
+          foreach (RadioGroupMap map in maps)
           {
             XmlNode nodeMap = xmlDoc.CreateElement("map");
-            AddAttribute(nodeMap, "ChannelName", map.Channel.displayName);
+            AddAttribute(nodeMap, "ChannelName", map.ReferencedChannel().DisplayName);
             AddAttribute(nodeMap, "SortOrder", map.SortOrder.ToString());
-            nodeGroupMap.AppendChild(nodeMap);
+            nodeRadioGroupMap.AppendChild(nodeMap);
           }
-          nodeChannelGroup.AppendChild(nodeGroupMap);
-          nodeChannelGroups.AppendChild(nodeChannelGroup);
+          nodeRadioChannelGroup.AppendChild(nodeRadioGroupMap);
+          nodeRadioChannelGroups.AppendChild(nodeRadioChannelGroup);
         }
-        rootElement.AppendChild(nodeChannelGroups);
+        rootElement.AppendChild(nodeRadioChannelGroups);
       }
 
       xmlDoc.AppendChild(rootElement);
@@ -341,8 +347,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
               XmlNodeList tuningList = nodeChannel.SelectNodes("TuningDetails/tune");
               XmlNodeList mappingList = nodeChannel.SelectNodes("mappings/map");
               bool grabEpg = (GetNodeAttribute(nodeChannel, "GrabEpg", "True") == "True");
-              bool isRadio = (GetNodeAttribute(nodeChannel, "MediaType", Convert.ToString((int)MediaTypeEnum.TV)) == Convert.ToString(MediaTypeEnum.Radio));
-              bool isTv = (GetNodeAttribute(nodeChannel, "MediaType", Convert.ToString((int)MediaTypeEnum.TV)) == Convert.ToString(MediaTypeEnum.TV));
+              bool isRadio = (GetNodeAttribute(nodeChannel, "IsRadio", "False") == "True");
+              bool isTv = (GetNodeAttribute(nodeChannel, "IsTv", "True") == "True");
               DateTime lastGrabTime = DateTime.ParseExact(GetNodeAttribute(nodeChannel, "LastGrabTime", "01.01.1900"),
                                                           "yyyy-M-d H:m:s", CultureInfo.InvariantCulture);
               int sortOrder = Int32.Parse(GetNodeAttribute(nodeChannel, "SortOrder", "0"));
@@ -374,16 +380,16 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 dbChannel = layer.AddNewChannel(displayName);
               }
 
-              dbChannel.grabEpg = grabEpg;
+              dbChannel.GrabEpg = grabEpg;
               dbChannel.IsRadio = isRadio;
               dbChannel.IsTv = isTv;
-              dbChannel.lastGrabTime = lastGrabTime;
-              dbChannel.sortOrder = sortOrder;
-              dbChannel.timesWatched = timesWatched;
-              dbChannel.totalTimeWatched = totalTimeWatched;
-              dbChannel.visibleInGuide = visibileInGuide;
-              dbChannel.displayName = displayName;
-              ServiceAgents.ChannelServiceAgent.SaveChannel(dbChannel);
+              dbChannel.LastGrabTime = lastGrabTime;
+              dbChannel.SortOrder = sortOrder;
+              dbChannel.TimesWatched = timesWatched;
+              dbChannel.TotalTimeWatched = totalTimeWatched;
+              dbChannel.VisibleInGuide = visibileInGuide;
+              dbChannel.DisplayName = displayName;
+              dbChannel.Persist();
 
               //
               // chemelli: When we import channels we need to add those to the "AllChannels" group
@@ -402,7 +408,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 int idCard = Int32.Parse(nodeMap.Attributes["IdCard"].Value);
                 XmlNode nodeCard =
                   doc.SelectSingleNode(String.Format("/tvserver/servers/server/cards/card[@IdCard={0}]", idCard));
-                Card dbCard = ServiceAgents.CardServiceAgent.GetCardByDevicePath(nodeCard.Attributes["DevicePath"].Value);
+                Card dbCard = layer.GetCardByDevicePath(nodeCard.Attributes["DevicePath"].Value);
                 if (dbCard != null)
                 {
                   layer.MapChannelToCard(dbCard, dbChannel, false);
@@ -435,7 +441,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 bool isVCRSignal = (GetNodeAttribute(nodeChannel, "IsVCRSignal", "False") == "True");
                 int SatIndex = Int32.Parse(GetNodeAttribute(nodeTune, "SatIndex", "-1"));
                 int InnerFecRate = Int32.Parse(GetNodeAttribute(nodeTune, "InnerFecRate", "-1"));
-                int band = Int32.Parse(GetNodeAttribute(nodeTune, "Band", "0"));
+                int idLnbType = Int32.Parse(GetNodeAttribute(nodeTune, "IdLnbType", "0"));
                 int pilot = Int32.Parse(GetNodeAttribute(nodeTune, "Pilot", "-1"));
                 int rollOff = Int32.Parse(GetNodeAttribute(nodeTune, "RollOff", "-1"));
                 string url = GetNodeAttribute(nodeTune, "Url", "");
@@ -454,7 +460,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                     analogChannel.TunerSource = (TunerInputType)tuningSource;
                     analogChannel.AudioSource = (AnalogChannel.AudioInputType)audioSource;
                     analogChannel.VideoSource = (AnalogChannel.VideoInputType)videoSource;
-                    analogChannel.IsVCRSignal = isVCRSignal;
+                    analogChannel.IsVcrSignal = isVCRSignal;
                     layer.AddTuningDetails(dbChannel, analogChannel);
                     Log.Info("TvChannels: Added tuning details for analog channel: {0} number: {1}", name, channelNumber);
                     break;
@@ -498,9 +504,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                     break;
                   case 3: //DVBSChannel
                     DVBSChannel dvbsChannel = new DVBSChannel();
-                    dvbsChannel.DisEqc = (DisEqcType)diseqc;
+                    dvbsChannel.Diseqc = (DiseqcPort)diseqc;
                     dvbsChannel.Polarisation = (Polarisation)polarisation;
-                    dvbsChannel.SwitchingFrequency = switchingFrequency;
                     dvbsChannel.FreeToAir = fta;
                     dvbsChannel.Frequency = frequency;
                     dvbsChannel.IsRadio = isRadio;
@@ -515,26 +520,26 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                     dvbsChannel.SatelliteIndex = SatIndex;
                     dvbsChannel.ModulationType = (ModulationType)modulation;
                     dvbsChannel.InnerFecRate = (BinaryConvolutionCodeRate)InnerFecRate;
-                    dvbsChannel.BandType = (BandType)band;
+                    dvbsChannel.LnbType = LnbType.Retrieve(idLnbType);
                     dvbsChannel.Pilot = (Pilot)pilot;
-                    dvbsChannel.Rolloff = (RollOff)rollOff;
+                    dvbsChannel.RollOff = (RollOff)rollOff;
                     dvbsChannel.LogicalChannelNumber = channelNumber;
                     layer.AddTuningDetails(dbChannel, dvbsChannel);
                     Log.Info("TvChannels: Added tuning details for DVB-S channel: {0} provider: {1}", name, provider);
                     break;
                   case 4: //DVBTChannel
                     DVBTChannel dvbtChannel = new DVBTChannel();
-                    dvbtChannel.BandWidth = bandwidth;
-                    dvbtChannel.freeToAir = fta;
-                    dvbtChannel.frequency = frequency;
+                    dvbtChannel.Bandwidth = bandwidth;
+                    dvbtChannel.FreeToAir = fta;
+                    dvbtChannel.Frequency = frequency;
                     dvbtChannel.IsRadio = isRadio;
                     dvbtChannel.IsTv = isTv;
                     dvbtChannel.Name = name;
-                    dvbtChannel.networkId = networkId;
-                    dvbtChannel.pmtPid = pmtPid;
-                    dvbtChannel.provider = provider;
-                    dvbtChannel.serviceId = serviceId;
-                    dvbtChannel.transportId = transportId;
+                    dvbtChannel.NetworkId = networkId;
+                    dvbtChannel.PmtPid = pmtPid;
+                    dvbtChannel.Provider = provider;
+                    dvbtChannel.ServiceId = serviceId;
+                    dvbtChannel.TransportId = transportId;
                     dvbtChannel.LogicalChannelNumber = channelNumber;
                     layer.AddTuningDetails(dbChannel, dvbtChannel);
                     Log.Info("TvChannels: Added tuning details for DVB-T channel: {0} provider: {1}", name, provider);
@@ -544,18 +549,18 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                     break;
                   case 7: //DVBIPChannel
                     DVBIPChannel dvbipChannel = new DVBIPChannel();
-                    dvbipChannel.freeToAir = fta;
-                    dvbipChannel.frequency = frequency;
-                    
+                    dvbipChannel.FreeToAir = fta;
+                    dvbipChannel.Frequency = frequency;
+                    dvbipChannel.IsRadio = isRadio;
                     dvbipChannel.IsTv = isTv;
                     dvbipChannel.LogicalChannelNumber = channelNumber;
                     dvbipChannel.Name = name;
-                    dvbipChannel.networkId = networkId;
-                    dvbipChannel.pmtPid = pmtPid;
-                    dvbipChannel.provider = provider;
-                    dvbipChannel.serviceId = serviceId;
-                    dvbipChannel.transportId = transportId;
-                    dvbipChannel.url = url;
+                    dvbipChannel.NetworkId = networkId;
+                    dvbipChannel.PmtPid = pmtPid;
+                    dvbipChannel.Provider = provider;
+                    dvbipChannel.ServiceId = serviceId;
+                    dvbipChannel.TransportId = transportId;
+                    dvbipChannel.Url = url;
                     layer.AddTuningDetails(dbChannel, dvbipChannel);
                     Log.Info("TvChannels: Added tuning details for DVB-IP channel: {0} provider: {1}", name, provider);
                     break;
@@ -599,18 +604,18 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 if (channels != null && channels.Count > 0)
                 {
                   Channel channel = channels[0];
-                  if (!channel.groupNames.Contains(group.groupName))
+                  if (!channel.GroupNames.Contains(group.GroupName))
                   {
-                    GroupMap map = new GroupMap(group.idGroup, channel.idChannel, sortOrder);
+                    GroupMap map = new GroupMap(group.IdGroup, channel.IdChannel, sortOrder);
                     map.Persist();
                   }
                   else
                   {
-                    foreach (GroupMap map in channel.GroupMaps)
+                    foreach (GroupMap map in channel.ReferringGroupMap())
                     {
-                      if (map.idGroup == group.idGroup)
+                      if (map.IdGroup == group.IdGroup)
                       {
-                        map.sortOrder = sortOrder;
+                        map.SortOrder = sortOrder;
                         map.Persist();
                         break;
                       }
@@ -636,8 +641,8 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
               radioChannelGroupCount++;
               string groupName = nodeChannelGroup.Attributes["GroupName"].Value;
               int groupSortOrder = Int32.Parse(nodeChannelGroup.Attributes["SortOrder"].Value);
-              ChannelGroup group = layer.GetChannelGroupByName(groupName) ??
-                                        new ChannelGroup(groupName, groupSortOrder);
+              RadioChannelGroup group = layer.GetRadioChannelGroupByName(groupName) ??
+                                        new RadioChannelGroup(groupName, groupSortOrder);
               group.Persist();
               XmlNodeList mappingList = nodeChannelGroup.SelectNodes("mappings/map");
               foreach (XmlNode nodeMap in mappingList)
@@ -647,18 +652,18 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 if (channels != null && channels.Count > 0)
                 {
                   Channel channel = channels[0];
-                  if (!channel.groupNames.Contains(group.groupName))
+                  if (!channel.GroupNames.Contains(group.GroupName))
                   {
-                    GroupMap map = new GroupMap(group.idGroup, channel.idChannel, sortOrder);
+                    RadioGroupMap map = new RadioGroupMap(group.IdGroup, channel.IdChannel, sortOrder);
                     map.Persist();
                   }
                   else
                   {
-                    foreach (GroupMap map in channel.GroupMaps)
+                    foreach (RadioGroupMap map in channel.ReferringRadioGroupMap())
                     {
-                      if (map.idGroup == group.idGroup)
+                      if (map.IdGroup == group.IdGroup)
                       {
-                        map.sortOrder = sortOrder;
+                        map.SortOrder = sortOrder;
                         map.Persist();
                         break;
                       }
@@ -690,7 +695,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
                 IList<Channel> channels = layer.GetChannelsByName(channel);
                 if (channels != null && channels.Count > 0)
                 {
-                  idChannel = channels[0].idChannel;
+                  idChannel = channels[0].IdChannel;
                 }
               }
               DateTime startTime = DateTime.ParseExact(nodeSchedule.Attributes["StartTime"].Value, "yyyy-M-d H:m:s",
@@ -700,17 +705,17 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
               int scheduleType = Int32.Parse(nodeSchedule.Attributes["ScheduleType"].Value);
               Schedule schedule = layer.AddSchedule(idChannel, programName, startTime, endTime, scheduleType);
 
-              schedule.scheduleType = scheduleType;
-              schedule.keepDate = DateTime.ParseExact(nodeSchedule.Attributes["KeepDate"].Value, "yyyy-M-d H:m:s",
+              schedule.ScheduleType = scheduleType;
+              schedule.KeepDate = DateTime.ParseExact(nodeSchedule.Attributes["KeepDate"].Value, "yyyy-M-d H:m:s",
                                                       CultureInfo.InvariantCulture);
-              schedule.preRecordInterval = Int32.Parse(nodeSchedule.Attributes["PreRecordInterval"].Value);
+              schedule.PreRecordInterval = Int32.Parse(nodeSchedule.Attributes["PreRecordInterval"].Value);
               schedule.PostRecordInterval = Int32.Parse(nodeSchedule.Attributes["PostRecordInterval"].Value);
               schedule.Priority = Int32.Parse(nodeSchedule.Attributes["Priority"].Value);
               schedule.Quality = Int32.Parse(nodeSchedule.Attributes["Quality"].Value);
               schedule.Directory = nodeSchedule.Attributes["Directory"].Value;
               schedule.KeepMethod = Int32.Parse(nodeSchedule.Attributes["KeepMethod"].Value);
-              schedule.MaxAirings = Int32.Parse(nodeSchedule.Attributes["MaxAirings"].Value);
-              schedule.scheduleType = Int32.Parse(nodeSchedule.Attributes["ScheduleType"].Value);
+              schedule.MaxAirings = Int32.Parse(nodeSchedule.Attributes["MaxAirings"].Value);              
+              schedule.ScheduleType = Int32.Parse(nodeSchedule.Attributes["ScheduleType"].Value);
               schedule.Series = (GetNodeAttribute(nodeSchedule, "Series", "False") == "True");
               if (idChannel > -1)
               {

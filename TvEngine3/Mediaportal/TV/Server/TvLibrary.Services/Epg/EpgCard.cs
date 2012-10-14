@@ -205,7 +205,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Epg
 
           _state = EpgState.Idle;
           ServiceManager.Instance.InternalControllerService.StopGrabbingEpg(_user);
-          ServiceManager.Instance.InternalControllerService.PauseCard(_user);
+          ServiceManager.Instance.InternalControllerService.StopCard(_user.CardId);
           _user.CardId = -1;
           _currentTransponder.InUse = false;
           return 0;
@@ -602,7 +602,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Epg
         if (_state != EpgState.Idle && _user.CardId >= 0)
         {
           ServiceManager.Instance.InternalControllerService.StopGrabbingEpg(_user);
-          ServiceManager.Instance.InternalControllerService.PauseCard(_user);
+          ServiceManager.Instance.InternalControllerService.StopCard(_user.CardId);
         }
         _currentTransponder.InUse = false;
         _state = EpgState.Idle;

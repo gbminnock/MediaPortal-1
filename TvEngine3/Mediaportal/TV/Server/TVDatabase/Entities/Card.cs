@@ -181,21 +181,6 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         private string _timeshiftingFolder;
     
         [DataMember]
-        public int RecordingFormat
-        {
-            get { return _recordingFormat; }
-            set
-            {
-                if (_recordingFormat != value)
-                {
-                    _recordingFormat = value;
-                    OnPropertyChanged("RecordingFormat");
-                }
-            }
-        }
-        private int _recordingFormat;
-    
-        [DataMember]
         public int DecryptLimit
         {
             get { return _decryptLimit; }
@@ -211,34 +196,19 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         private int _decryptLimit;
     
         [DataMember]
-        public bool Preload
+        public bool PreloadCard
         {
-            get { return _preload; }
+            get { return _preloadCard; }
             set
             {
-                if (_preload != value)
+                if (_preloadCard != value)
                 {
-                    _preload = value;
-                    OnPropertyChanged("Preload");
+                    _preloadCard = value;
+                    OnPropertyChanged("PreloadCard");
                 }
             }
         }
-        private bool _preload;
-    
-        [DataMember]
-        public bool CAM
-        {
-            get { return _cAM; }
-            set
-            {
-                if (_cAM != value)
-                {
-                    _cAM = value;
-                    OnPropertyChanged("CAM");
-                }
-            }
-        }
-        private bool _cAM;
+        private bool _preloadCard;
     
         [DataMember]
         public int NetProvider
@@ -256,19 +226,109 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         private int _netProvider;
     
         [DataMember]
-        public bool StopGraph
+        public int IdleMode
         {
-            get { return _stopGraph; }
+            get { return _idleMode; }
             set
             {
-                if (_stopGraph != value)
+                if (_idleMode != value)
                 {
-                    _stopGraph = value;
-                    OnPropertyChanged("StopGraph");
+                    _idleMode = value;
+                    OnPropertyChanged("IdleMode");
                 }
             }
         }
-        private bool _stopGraph;
+        private int _idleMode;
+    
+        [DataMember]
+        public int MultiChannelDecryptMode
+        {
+            get { return _multiChannelDecryptMode; }
+            set
+            {
+                if (_multiChannelDecryptMode != value)
+                {
+                    _multiChannelDecryptMode = value;
+                    OnPropertyChanged("MultiChannelDecryptMode");
+                }
+            }
+        }
+        private int _multiChannelDecryptMode;
+    
+        [DataMember]
+        public bool AlwaysSendDiseqcCommands
+        {
+            get { return _alwaysSendDiseqcCommands; }
+            set
+            {
+                if (_alwaysSendDiseqcCommands != value)
+                {
+                    _alwaysSendDiseqcCommands = value;
+                    OnPropertyChanged("AlwaysSendDiseqcCommands");
+                }
+            }
+        }
+        private bool _alwaysSendDiseqcCommands;
+    
+        [DataMember]
+        public int DiseqcCommandRepeatCount
+        {
+            get { return _diseqcCommandRepeatCount; }
+            set
+            {
+                if (_diseqcCommandRepeatCount != value)
+                {
+                    _diseqcCommandRepeatCount = value;
+                    OnPropertyChanged("DiseqcCommandRepeatCount");
+                }
+            }
+        }
+        private int _diseqcCommandRepeatCount;
+    
+        [DataMember]
+        public int PidFilterMode
+        {
+            get { return _pidFilterMode; }
+            set
+            {
+                if (_pidFilterMode != value)
+                {
+                    _pidFilterMode = value;
+                    OnPropertyChanged("PidFilterMode");
+                }
+            }
+        }
+        private int _pidFilterMode;
+    
+        [DataMember]
+        public bool UseCustomTuning
+        {
+            get { return _useCustomTuning; }
+            set
+            {
+                if (_useCustomTuning != value)
+                {
+                    _useCustomTuning = value;
+                    OnPropertyChanged("UseCustomTuning");
+                }
+            }
+        }
+        private bool _useCustomTuning;
+    
+        [DataMember]
+        public bool UseConditionalAccess
+        {
+            get { return _useConditionalAccess; }
+            set
+            {
+                if (_useConditionalAccess != value)
+                {
+                    _useConditionalAccess = value;
+                    OnPropertyChanged("UseConditionalAccess");
+                }
+            }
+        }
+        private bool _useConditionalAccess;
 
         #endregion
         #region Navigation Properties

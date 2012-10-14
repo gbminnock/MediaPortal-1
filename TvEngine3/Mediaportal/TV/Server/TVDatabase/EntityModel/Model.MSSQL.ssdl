@@ -32,7 +32,8 @@
     <EntitySet Name="TuningDetails" EntityType="TVDatabaseModel.Store.TuningDetails" store:Type="Tables" Schema="dbo" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" />
     <EntitySet Name="TvMovieMappings" EntityType="TVDatabaseModel.Store.TvMovieMappings" store:Type="Tables" Schema="dbo" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" />
     <EntitySet Name="Versions" EntityType="TVDatabaseModel.Store.Versions" store:Type="Tables" Schema="dbo" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" />
-    <EntitySet Name="RecordingCredits" EntityType="TVDatabaseModel.Store.RecordingCredits" store:Type="Tables" Schema="dbo" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" />
+    <EntitySet Name="RecordingCredits" EntityType="TVDatabaseModel.Store.RecordingCredits" store:Type="Tables" Schema="dbo" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" />    
+    
     <AssociationSet Name="GroupMapChannelGroup" Association="TVDatabaseModel.Store.GroupMapChannelGroup">
       <End Role="GroupMap" EntitySet="GroupMaps" />
       <End Role="ChannelGroup" EntitySet="ChannelGroups" />

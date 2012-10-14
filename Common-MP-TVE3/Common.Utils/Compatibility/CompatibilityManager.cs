@@ -179,7 +179,7 @@ namespace MediaPortal.Common.Utils
     /// its defining assembly is searched for the same attribute.
     /// </remarks>
     public static bool IsPluginCompatible(Type plugin)
-    {
+    {      
       var mpVersions =
         (CompatibleVersionAttribute[])plugin.GetCustomAttributes(typeof(CompatibleVersionAttribute), true);
       if (mpVersions.Length == 0)
@@ -219,7 +219,8 @@ namespace MediaPortal.Common.Utils
 
       Version ver;
       // Have all used subsystem known versions and prior to the one the plugin was designed for?
-      return subsystemsUsed.All(attr => SubSystemVersions.TryGetValue(attr.Subsystem, out ver) && CompareVersions(ver, designedForVersion) <= 0);
+      bool isPluginCompatible = subsystemsUsed.All(attr => SubSystemVersions.TryGetValue(attr.Subsystem, out ver) && CompareVersions(ver, designedForVersion) <= 0);
+      return isPluginCompatible;
     }
 
     /// <summary>
@@ -287,19 +288,6 @@ namespace MediaPortal.Common.Utils
       {
         return AppVersion;
       }
-      return version;
-    }
-
-    public static Version GetCurrentMaxVersion()
-    {
-      CheckLoadedAssemblies();
-      return SubSystemVersions.Max(v => v.Value);
-    }
-
-    public static Version GetCurrentSubSystemVersion(string subSystem)
-    {
-      Version version = null;
-      SubSystemVersions.TryGetValue(subSystem, out version);
       return version;
     }
 
@@ -373,17 +361,6 @@ namespace MediaPortal.Common.Utils
       Version ver;
       // Have all used subsystem known versions and prior to the one the plugin was designed for?
       return subsystemsUsed.All(attr => SubSystemVersions.TryGetValue(attr, out ver) && CompareVersions(ver, designedForVersion) <= 0);
-    }
-
-    static readonly Dictionary<Version, string> MpReleaseApi = new Dictionary<Version, string>()
-    {
-      { new Version("1.1.6.27644"), "1.2.0 Beta" },
-      { new Version("1.2.100.0"), "1.3.0 Alpha" }
-    };
-
-    public static string MediaPortalReleaseForApiVersion(Version apiVersion)
-    {
-      return MpReleaseApi.First(v => v.Key >= apiVersion).Value;
     }
   }
 }

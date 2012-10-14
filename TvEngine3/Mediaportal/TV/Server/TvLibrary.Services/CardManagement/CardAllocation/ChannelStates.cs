@@ -185,7 +185,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
                   continue;
                 }
 
-                if (!tuningDetail.FreeToAir && !cardHandler.DataBaseCard.CAM)
+                if (!tuningDetail.FreeToAir && !cardHandler.DataBaseCard.UseConditionalAccess)
                 {
                   UpdateChannelStateUsers(allUsers, ChannelState.nottunable, channel.IdChannel);
                   continue;

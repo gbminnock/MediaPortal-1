@@ -130,13 +130,14 @@ namespace Mediaportal.TV.TvPlugin
           }
 
           IUser user = TVHome.Card.User;
-          IVideoStream videoStream = TVHome.Card.GetCurrentVideoStream((User)user);
-          IEnumerable<IAudioStream> audioStreams = TVHome.Card.AvailableAudioStreams;
+
+          //IVideoStream videoStream = TVHome.Card.GetCurrentVideoStream((User)user);
+          //IEnumerable<IAudioStream> audioStreams = TVHome.Card.AvailableAudioStreams;
 
           String audioPids = String.Empty;
           String videoPid = String.Empty;
 
-          if (audioStreams != null)
+          /*if (audioStreams != null)
           {
             foreach (IAudioStream stream in audioStreams)
             {
@@ -145,7 +146,7 @@ namespace Mediaportal.TV.TvPlugin
           }          
 		  
           videoPid = videoStream.Pid.ToString() + " (" + videoStream.StreamType + ")";
-
+          */
           GUIPropertyManager.SetProperty("#TV.TuningDetails.CountryId", detail.CountryId.ToString());
           GUIPropertyManager.SetProperty("#TV.TuningDetails.FreeToAir", detail.FreeToAir.ToString());
           GUIPropertyManager.SetProperty("#TV.TuningDetails.Frequency", detail.Frequency.ToString());
@@ -158,7 +159,7 @@ namespace Mediaportal.TV.TvPlugin
           GUIPropertyManager.SetProperty("#TV.TuningDetails.ServiceId", detail.ServiceId.ToString());
           GUIPropertyManager.SetProperty("#TV.TuningDetails.SymbolRate", detail.Symbolrate.ToString());
           GUIPropertyManager.SetProperty("#TV.TuningDetails.TransportId", detail.TransportId.ToString());
-          GUIPropertyManager.SetProperty("#TV.TuningDetails.PcrPid", videoStream.PcrPid.ToString());
+          //GUIPropertyManager.SetProperty("#TV.TuningDetails.PcrPid", videoStream.PcrPid.ToString());
           GUIPropertyManager.SetProperty("#TV.TuningDetails.VideoPid", videoPid);
           GUIPropertyManager.SetProperty("#TV.TuningDetails.AudioPid", audioPids);
         }

@@ -90,6 +90,7 @@
     <Compile Include="Interfaces\IProgramRepository.cs" />
     <Compile Include="Interfaces\ISettingsRepository.cs" />
     <Compile Include="Repositories\CardRepository.cs" />
+    <Compile Include="Repositories\LnbTypeRepository.cs" />
     <Compile Include="Repositories\ScheduleRepository.cs" />
     <Compile Include="Repositories\RecordingRepository.cs" />
     <Compile Include="Repositories\SettingsRepository.cs" />

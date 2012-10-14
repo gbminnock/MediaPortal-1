@@ -69,38 +69,21 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components
     /// </summary>
     public void Dispose()
     {
-      Dispose(true);
-      GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-      if (disposing)
-      {
-        // get rid of managed resources
-      }
-
-      // get rid of unmanaged resources
       if (_filterWstDecoder != null)
       {
         Release.ComObject("wst codec filter", _filterWstDecoder);
-        _filterWstDecoder = null;        
+        _filterWstDecoder = null;
       }
       if (_teeSink != null)
       {
         Release.ComObject("teesink filter", _teeSink);
-        _teeSink = null;        
+        _teeSink = null;
       }
       if (_pinWST_VBI != null)
       {
         Release.ComObject("wst/vbi codec pinout", _pinWST_VBI);
-        _pinWST_VBI = null;        
+        _pinWST_VBI = null;
       }
-    }
-    
-    ~TeletextComponent()
-    {
-      Dispose(false);
     }
 
     #endregion
@@ -117,7 +100,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components
     public bool CreateFilterInstance(Graph graph, IFilterGraph2 graphBuilder, Capture capture)
     {
       Log.WriteFile("analog: SetupTeletext()");
-      Guid guidBaseFilter = typeof (IBaseFilter).GUID;
+      Guid guidBaseFilter = typeof(IBaseFilter).GUID;
       object obj;
       //find and add tee/sink to sink filter
       DsDevice[] devices = DsDevice.GetDevicesOfCat(FilterCategory.AMKSSplitter);
@@ -198,7 +181,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components
         //Look for VBI Codec for Vista users as Vista doesn't use WST Codec anymore
         if (_filterWstDecoder == null)
         {
-          devices = DsDevice.GetDevicesOfCat(FilterCategory.AMKSMULTIVBICodec);
+          devices = DsDevice.GetDevicesOfCat(MediaPortalGuid.AMKSMULTIVBICodec);
           foreach (DsDevice device in devices)
             if (device.Name != null && device.Name.IndexOf("VBI") >= 0)
             {
@@ -217,7 +200,7 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Analog.Components
                 return false;
               }
               graph.Teletext.Name = device.Name;
-              graph.Teletext.Category = FilterCategory.AMKSMULTIVBICodec;
+              graph.Teletext.Category = MediaPortalGuid.AMKSMULTIVBICodec;
               break;
             }
         }

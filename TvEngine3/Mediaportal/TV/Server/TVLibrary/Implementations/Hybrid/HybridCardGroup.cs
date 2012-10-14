@@ -90,19 +90,14 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Hybrid
     #region ITVCard Members
 
     /// <summary>
-    /// Stops the current graph
+    /// Stop the device. The actual result of this function depends on device configuration:
+    /// - graph stop
+    /// - graph pause
+    /// TODO graph destroy
     /// </summary>
-    public void StopGraph()
+    public void Stop()
     {
-      _cards[_currentCardIndex].StopGraph();
-    }
-
-    /// <summary>
-    /// Pauses the current graph
-    /// </summary>
-    public void PauseGraph()
-    {
-      _cards[_currentCardIndex].PauseGraph();
+      _cards[_currentCardIndex].Stop();
     }
 
     /// <summary>
@@ -184,11 +179,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Tunes the specified channel.
+    /// Tune to a specific channel.
     /// </summary>
-    /// <param name="subChannelId">The subchannel id</param>
-    /// <param name="channel">The channel.</param>
-    /// <returns>true if succeeded else false</returns>
+    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being tuned.</param>
+    /// <param name="channel">The channel to tune to.</param>
+    /// <returns>the subchannel associated with the tuned channel</returns>
     public ITvSubChannel Tune(int subChannelId, IChannel channel)
     {
       for (int i = 0; i < _cards.Count; ++i)
@@ -210,11 +205,11 @@ namespace Mediaportal.TV.Server.TVLibrary.Implementations.Hybrid
     }
 
     /// <summary>
-    /// Scans the specified channel.
+    /// Scan a specific channel.
     /// </summary>
-    /// <param name="subChannelId">The subchannel id</param>
-    /// <param name="channel">The channel.</param>
-    /// <returns>true if succeeded else false</returns>
+    /// <param name="subChannelId">The ID of the subchannel associated with the channel that is being scanned.</param>
+    /// <param name="channel">The channel to scan.</param>
+    /// <returns>the subchannel associated with the scanned channel</returns>
     public ITvSubChannel Scan(int subChannelId, IChannel channel)
     {
       for (int i = 0; i < _cards.Count; ++i)

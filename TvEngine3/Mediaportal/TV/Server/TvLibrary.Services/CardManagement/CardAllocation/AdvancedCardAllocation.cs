@@ -40,7 +40,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
 {
   public class AdvancedCardAllocation : CardAllocationBase, ICardAllocation
   {
-    #region private members   
+    #region private members
 
     public AdvancedCardAllocation()
     {
@@ -91,10 +91,10 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
     /// </summary>
     /// <returns>list containg all free cards which can receive the channel</returns>
     public List<CardDetail> GetFreeCardsForChannel(IDictionary<int, ITvCardHandler> cards, Channel dbChannel, IUser user)
-     {
-       TvResult result;
-       return GetFreeCardsForChannel(cards, dbChannel, user, out result);
-     }
+    {
+      TvResult result;
+      return GetFreeCardsForChannel(cards, dbChannel, user, out result);
+    }
 
     /// <summary>
     /// Gets a list of all free cards which can receive the channel specified
@@ -158,13 +158,13 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
       }
     }
 
-    private static TvResult GetResultNoCards(IDictionary<int, TvResult> cardsUnAvailable) 
+    private static TvResult GetResultNoCards(IDictionary<int, TvResult> cardsUnAvailable)
     {
       TvResult resultNoCards = TvResult.ChannelNotMappedToAnyCard;
       //Dictionary<int, TvResult>.ValueCollection values = cardsUnAvailable.Values;
       ICollection<TvResult> values = cardsUnAvailable.Values;
 
-      if (values.Any(tvResult => tvResult == TvResult.ChannelIsScrambled)) 
+      if (values.Any(tvResult => tvResult == TvResult.ChannelIsScrambled))
       {
         resultNoCards = TvResult.ChannelIsScrambled;
       }
@@ -189,14 +189,14 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
     /// </summary>
     /// <returns>list containg all cards which can receive the channel</returns>
     public List<CardDetail> GetAvailableCardsForChannel(IDictionary<int, ITvCardHandler> cards, Channel dbChannel, IUser user, out IDictionary<int, TvResult> cardsUnAvailable)
-    {      
+    {
       Stopwatch stopwatch = Stopwatch.StartNew();
       cardsUnAvailable = new Dictionary<int, TvResult>();
       try
       {
         //Log.Info("GetFreeCardsForChannel st {0}", Environment.StackTrace);
         //construct list of all cards we can use to tune to the new channel
-        var cardsAvailable = new List<CardDetail>();        
+        var cardsAvailable = new List<CardDetail>();
         if (LogEnabled)
         {
           Log.Info("Controller: find card for channel {0}", dbChannel.DisplayName);
@@ -326,7 +326,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
     {
       bool canCardDecodeChannel = true;
       int cardId = cardHandler.DataBaseCard.IdCard;
-      if (!tuningDetail.FreeToAir && !cardHandler.DataBaseCard.CAM)
+      if (!tuningDetail.FreeToAir && !cardHandler.DataBaseCard.UseConditionalAccess)
       {
         Log.Info("Controller:    card:{0} type:{1} channel is encrypted but card has no CAM", cardId, cardHandler.Type);
         canCardDecodeChannel = false;
@@ -350,7 +350,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
 
       bool isCardPresent = IsCardPresent(cardId);
       if (!isCardPresent)
-      {        
+      {
         return false;
       }
 
@@ -387,7 +387,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardAllocation
 
     #endregion
 
-    #region public members       
+    #region public members
 
     #endregion
   }

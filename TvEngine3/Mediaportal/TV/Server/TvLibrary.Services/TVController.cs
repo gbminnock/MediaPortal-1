@@ -127,17 +127,31 @@ namespace Mediaportal.TV.Server.TVLibrary
       {
         if (ValidateTvControllerParams(cardId, false))
         {
-          ITVCard unknownCard = _cards[cardId].Card;
-          if (unknownCard is TvCardBase)
+          // Note: this is *far* from ideal. We have no way to actually tell whether the tuner supports
+          // conditional access unless the tuner graph is initialised. We also have no way to tell if the
+          // tuner graph is initialised. If we try to initialise the graph and it is already initialised
+          // then we'll get an exception. We do the best that we can, but we can't guarantee that this
+          // will work for hybrid tuners - we don't want to interrupt timeshifting and recording.
+          ITVCard card = _cards[cardId].Card;
+          if (card.IsConditionalAccessSupported)
           {
-            TvCardBase card = (TvCardBase)unknownCard;
-            if (card.ConditionalAccess == null)
-            {
-              card.BuildGraph();
-            }
-            
-            initConditionalAccess = true;
-          }  
+            return true;
+          }
+          TvCardBase baseCard = card as TvCardBase;
+          if (baseCard == null)
+          {
+            // Non-initialised HybridCard instances exit here.
+            return false;
+          }
+          try
+          {
+            baseCard.BuildGraph();
+          }
+          catch (Exception)
+          {
+            // If we get here, we assume the graph is already built - not a problem.
+          }
+          initConditionalAccess = card.IsConditionalAccessSupported;
         }
         else
         {
@@ -516,10 +530,11 @@ namespace Mediaportal.TV.Server.TVLibrary
               GrabEPG = true,
               Enabled = true,
               CamType = 0,
-              RecordingFormat = 0,
-              DecryptLimit = 0,
-              StopGraph = true,
-              NetProvider = (int)DbNetworkProvider.Generic
+              DecryptLimit = 0,              
+              NetProvider = (int)DbNetworkProvider.Generic,              
+              MultiChannelDecryptMode = (int)MultiChannelDecryptMode.Disabled,
+              PidFilterMode = (int)PidFilterMode.Auto,
+              IdleMode = (int)DeviceIdleMode.Stop
             };
 
             TVDatabase.TVBusinessLayer.CardManagement.SaveCard(newCard);
@@ -1387,31 +1402,23 @@ namespace Mediaportal.TV.Server.TVLibrary
       return _scheduler.IsTimeToRecord(schedule, time);
     }
 
-    /// <summary>
-    /// Returns the video stream currently associated with the card. 
-    /// </summary>
-    /// <returns>stream_type</returns>
-    public IVideoStream GetCurrentVideoStream(string userName)
-    {
-      IVideoStream currentVideoStream = null;
-      try
-      {
-        if (ValidateTvControllerParams(userName))
-        {
-          IUser userCopy = GetUserFromContext(userName, TvUsage.Timeshifting);
-          if (userCopy != null)
-          {
-            currentVideoStream = _cards[userCopy.CardId].GetCurrentVideoStream(userName);
-          }
-        }
-      }
-      catch (Exception e)
-      {
-        HandleControllerException(e);
-      }
-      return currentVideoStream;
-    }
 
+    /// <summary>
+    /// Does the card support conditional access?
+    /// </summary>
+    /// <param name="cardId">The ID of the card to check.</param>
+    /// <return><c>true</c> if the card supports conditional access, otherwise <c>false</c></return>
+    public bool IsConditionalAccessSupported(int cardId)
+    {
+      if (ValidateTvControllerParams(cardId))
+      {
+        return _cards[cardId].IsConditionalAccessSupported;
+      }
+      else
+      {
+        return false;
+      }
+    }
     
 
     /// <summary>
@@ -1816,19 +1823,6 @@ namespace Mediaportal.TV.Server.TVLibrary
       return maxChannel;        
     }
 
-    /// <summary>
-    /// Does the card have a CA module.
-    /// </summary>
-    /// <value>The number of channels decrypting.</value>
-    public bool HasCA(int cardId)
-    {
-      bool hasCa = false;
-      if (ValidateTvControllerParams(cardId))
-      {
-        hasCa = _cards[cardId].HasCA;
-      }
-      return hasCa;
-    }
 
     /// <summary>
     /// Gets the number of channels decrypting.
@@ -2468,18 +2462,6 @@ namespace Mediaportal.TV.Server.TVLibrary
       return result;
     }
 
-    
-
-    public void PauseCard(IUser user)
-    {
-      if (ValidateTvControllerParams(user))
-      {
-        RefreshUserFromSpecificContext(ref user);
-        _cards[user.CardId].PauseCard();
-   
-      }
-    }
-
     public bool StopTimeShifting(string userName, out IUser user, TvStoppedReason reason)
     {
       user = null;
@@ -3070,48 +3052,9 @@ namespace Mediaportal.TV.Server.TVLibrary
 
     #region audio streams
 
-    public IList<IAudioStream> AvailableAudioStreams(string userName)
-    {
-      IList<IAudioStream> availableAudioStreams = null;
-      try
-      {
-        if (ValidateTvControllerParams(userName))
-        {
-          IUser userCopy = GetUserFromContext(userName, TvUsage.Timeshifting);
-          if (userCopy != null)
-          {
-            ITvCardHandler tvCardHandler = _cards[userCopy.CardId];
-            int idChannel = tvCardHandler.UserManagement.GetTimeshiftingChannelId(userCopy.Name);
-            availableAudioStreams = tvCardHandler.Audio.Streams(userName, idChannel);
-          }
-        }
-      }
-      catch (Exception e)
-      {
-        HandleControllerException(e);
-      }
-      return availableAudioStreams;
-    }
+   
 
-    public IAudioStream GetCurrentAudioStream(IUser user, int idChannel)
-    {
-      IAudioStream currentAudioStream = null;
-      if (ValidateTvControllerParams(user))
-      {
-        RefreshUserFromSpecificContext(ref user);
-        currentAudioStream = _cards[user.CardId].Audio.GetCurrent(user, idChannel);
-      }
-      return currentAudioStream;
-    }
-
-    public void SetCurrentAudioStream(IUser user, IAudioStream stream, int idChannel)
-    {
-      if (ValidateTvControllerParams(user))
-      {
-        RefreshUserFromSpecificContext(ref user);
-        _cards[user.CardId].Audio.Set(user, stream, idChannel);  
-      }
-    }
+ 
 
     public string GetStreamingUrl(string userName)
     {
@@ -5223,7 +5166,6 @@ namespace Mediaportal.TV.Server.TVLibrary
         RefreshUserFromSpecificContext(ref user);
         card = new VirtualCard(user)
         {
-          RecordingFormat = _cards[user.CardId].DataBaseCard.RecordingFormat,
           RecordingFolder = _cards[user.CardId].DataBaseCard.RecordingFolder,
           TimeshiftFolder = _cards[user.CardId].DataBaseCard.TimeshiftingFolder,
           RemoteServer = Dns.GetHostName()

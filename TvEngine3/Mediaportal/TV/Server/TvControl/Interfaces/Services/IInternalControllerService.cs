@@ -88,7 +88,6 @@ namespace Mediaportal.TV.Server.TVControl.Interfaces.Services
     /// <returns>true if succeeded</returns>
     TvResult Tune(ref IUser user, IChannel channel, int idChannel, object ticket, object cardResImpl);
 
-    void PauseCard(IUser user);
 
     /// <summary>
     /// grabs the epg.
@@ -128,5 +127,12 @@ namespace Mediaportal.TV.Server.TVControl.Interfaces.Services
     bool StopTimeShifting(ref IUser user, TvStoppedReason reason, int channelId);
     bool StopTimeShifting(ref IUser user, int channelId);
     bool IsScrambled(int cardId, int subChannel);
+
+    /// <summary>
+    /// Does the card support conditional access?
+    /// </summary>
+    /// <param name="cardId">The ID of the card to check.</param>
+    /// <return><c>true</c> if the card supports conditional access, otherwise <c>false</c></return>
+    bool IsConditionalAccessSupported(int cardId);
   }
 }

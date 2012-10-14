@@ -24,147 +24,260 @@ using System.Runtime.InteropServices;
 namespace Mediaportal.TV.Server.TVLibrary.Interfaces.Analyzer
 {
   ///<summary>
-  /// Channel scanning callback
+  /// TsWriter channel scanner callback interface.
   ///</summary>
   [ComVisible(true), ComImport,
-   Guid("CE141670-1840-4188-8A40-618BA3A5A1C3"),
-   InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  public interface IChannelScanCallback
+    Guid("ce141670-1840-4188-8a40-618ba3a5a1c3"),
+    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  public interface IChannelScanCallBack
   {
     /// <summary>
-    /// Called when the channel scanning is done
+    /// Called by an ITsChannelScan instance when scanning is complete and all available service
+    /// information is ready to be retrieved.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>an HRESULT indicating whether the notification was successfully handled</returns>
     [PreserveSig]
     int OnScannerDone();
   }
 
   /// <summary>
-  /// interface to the channel scan com object
+  /// Broadcast standards supported by the TsWriter scanner.
+  /// </summary>
+  public enum BroadcastStandard
+  {
+    /// <summary>
+    /// DVB - EN 300 468.
+    /// </summary>
+    Dvb = 0,
+    /// <summary>
+    /// ATSC - A/53 part 3, A/65.
+    /// </summary>
+    Atsc = 1,
+    /// <summary>
+    /// North American cable - SCTE 54, treated the same as ATSC.
+    /// </summary>
+    Scte = 2,
+    /// <summary>
+    /// ISDB - treated the same as DVB.
+    /// </summary>
+    Isdb = 3
+  }
+
+  /// <summary>
+  /// TsWriter channel scanner interface.
   /// </summary>
   [ComVisible(true), ComImport,
-   Guid("1663DC42-D169-41da-BCE2-EEEC482CB9FB"),
-   InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    Guid("1663dc42-d169-41da-bce2-eeec482cb9fb"),
+    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   public interface ITsChannelScan
   {
     /// <summary>
-    /// Starts scanning the current transponder.
+    /// Set the delegate for the scanner to notify when scanning is complete.
     /// </summary>
-    /// <param name="waitForVCT">Tells the analyzer to wait for a vct section in addition to just the pmt</param>
-    /// <returns></returns>
+    /// <param name="callBack">The delegate callback interface.</param>
+    /// <returns>an HRESULT indicating whether the delegate was successfully registered</returns>
     [PreserveSig]
-    int Start(bool waitForVCT);
+    int SetCallBack(IChannelScanCallBack callBack);
 
     /// <summary>
-    /// Stops scanning.
+    /// Start scanning for services in the stream that is currently being received.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="broadcastStandard">The broadcast standard that the stream conforms with.</param>
+    /// <returns>an HRESULT indicating whether scanning is successfully started</returns>
     [PreserveSig]
-    int Stop();
+    int ScanStream(BroadcastStandard broadcastStandard);
 
     /// <summary>
-    /// Returns the number of channels found.
+    /// Stop stream scanning.
     /// </summary>
-    /// <param name="channelCount">The channel count.</param>
-    /// <returns></returns>
+    /// <returns>an HRESULT indicating whether scanning is successfully stopped</returns>
     [PreserveSig]
-    int GetCount(out short channelCount);
+    int StopStreamScan();
 
     /// <summary>
-    /// Determines whether scanner is finished or not.
+    /// Get the number of services found during the most recently completed scan.
     /// </summary>
-    /// <param name="yesNo">true when scanner is finished else false</param>
-    /// <returns></returns>
+    /// <remarks>
+    /// In the case of a network scan where service information is available for other streams,
+    /// this count will include the services from other streams.
+    /// </remarks>
+    /// <param name="serviceCount">The number of services found by the scanner.</param>
+    /// <returns>an HRESULT indicating whether the service count was successfully retrieved</returns>
     [PreserveSig]
-    int IsReady(out bool yesNo);
+    int GetServiceCount(out int serviceCount);
 
     /// <summary>
-    /// Gets the details for a channel.
+    /// Retrieve the details for a specific service from the scanner.
     /// </summary>
-    /// <param name="index">The index.</param>
-    /// <param name="networkId">The network id.</param>
-    /// <param name="transportId">The transport id.</param>
-    /// <param name="serviceId">The service id.</param>
-    /// <param name="majorChannel">The major channel.</param>
-    /// <param name="minorChannel">The minor channel.</param>
-    /// <param name="frequency">The frequency.</param>
-    /// <param name="lcn">The LCN.</param>
-    /// <param name="freeCAMode">The free CA mode.</param>
-    /// <param name="serviceType">Type of the service.</param>
-    /// <param name="modulation">The modulation.</param>
-    /// <param name="providerName">Name of the provider.</param>
-    /// <param name="serviceName">Name of the service.</param>
-    /// <param name="pmtPid">The PMT pid.</param>
-    /// <param name="hasVideo">Whether the channel has Video.</param>
-    /// <param name="hasAudio">Whether the channel has Audio.</param>
-    /// <param name="hasCaDescriptor">Whether the channel has a conditional access descriptor.</param>
-    /// <returns></returns>
+    /// <remarks>
+    /// Many of the parameters for this method are not applicable for North American television transmission standards.
+    /// Specifically: isHighDefinition, previous service identifiers and all of the lists except the language list will
+    /// not be populated for ATSC, SCTE cable and clear QAM services.
+    /// </remarks>
+    /// <param name="index">The service index. The value of this parameter should be in the range 0..[GetServiceCount() - 1] (inclusive).</param>
+    /// <param name="originalNetworkId">The service's original network ID.</param>
+    /// <param name="transportStreamId">The service's transport stream ID.</param>
+    /// <param name="serviceId">The service's identifier.</param>
+    /// <param name="serviceName">The name of the service.</param>
+    /// <param name="providerName">The name of the service's provider.</param>
+    /// <param name="logicalChannelNumber">The logical channel number associated with the service.</param>
+    /// <param name="serviceType">The standard-specific type code for the service (eg. for DVB, 1 is digital television).</param>
+    /// <param name="videoStreamCount">The number of video streams associated with the service.</param>
+    /// <param name="audioStreamCount">The number of audio streams associated with the service.</param>
+    /// <param name="isHighDefinition"><c>True</c> if the service has high resolution video, otherwise <c>false</c>.</param>
+    /// <param name="isEncrypted"><c>True</c> if the service is encrypted, otherwise <c>false</c>.</param>
+    /// <param name="isRunning"><c>True</c> if the service is currently active, otherwise <c>false</c>.</param>
+    /// <param name="pmtPid">The service's PMT PID.</param>
+    /// <param name="previousOriginalNetworkId">The service's previous original network ID. Only populated when it can
+    ///     be determined that the service identifier changed recently.</param>
+    /// <param name="previousTransportStreamId">The service's previous transport stream ID. Only populated when it can
+    ///     be determined that the service identifier changed recently.</param>
+    /// <param name="previousServiceId">The service's previous service ID. Only populated when it can be determined that
+    ///     the service identifier changed recently.</param>
+    /// <param name="networkIdCount">The number of networks that the service is included in.</param>
+    /// <param name="networkIds">A buffer containing the Int32 identifiers of each network that the service is included in.</param>
+    /// <param name="bouquetIdCount">The number of bouquets that the service is included in.</param>
+    /// <param name="bouquetIds">A buffer containing the Int32 identifiers of each bouquet that the service is included in.</param>
+    /// <param name="languageCount">The distinct number of audio and subtitle languages that are transmitted as part of the service.</param>
+    /// <param name="languages">A buffer containing the ISO 639 3 byte language codes associated with the audio and subtitle stream languages.</param>
+    /// <param name="availableInCellCount">The number of cells in which the service may be received.</param>
+    /// <param name="availableInCells">A buffer containing the Int32 identifiers of each cell in which the service may be received.</param>
+    /// <param name="unavailableInCellCount">The number of cells in which the service may not be received.</param>
+    /// <param name="unavailableInCells">A buffer containing the Int32 identifiers of each cell in which the service may not be received.</param>
+    /// <param name="targetRegionCount">The number of regions in which the service is intended to be received.</param>
+    /// <param name="targetRegions">A buffer containing the Int64 identifiers of each region in which the service is intended to be received.</param>
+    /// <param name="availableInCountryCount">The number of countries in which the service is intended to be available.</param>
+    /// <param name="availableInCountries">A buffer containing the ISO 3166 3 byte code for each country in which the service is intended to be available.</param>
+    /// <param name="unavailableInCountryCount">The number of countries in which the service is not intended to be available.</param>
+    /// <param name="unavailableInCountries">A buffer containing the ISO 3166 3 byte code for each country in which the service is not intended to be available.</param>
+    /// <returns>an HRESULT indicating whether the service details were successfully retrieved</returns>
     [PreserveSig]
-    int GetChannel(short index,
-                   out int networkId,
-                   out int transportId,
-                   out int serviceId,
-                   out short majorChannel,
-                   out short minorChannel,
-                   out short frequency,
-                   out short lcn,
-                   out short freeCAMode,
-                   out short serviceType,
-                   out short modulation,
-                   out IntPtr providerName,
-                   out IntPtr serviceName,
-                   out short pmtPid,
-                   out short hasVideo,
-                   out short hasAudio,
-                   out short hasCaDescriptor);
+    int GetServiceDetail(int index,
+                          out int originalNetworkId,
+                          out int transportStreamId,
+                          out int serviceId,
+                          out IntPtr serviceName,
+                          out IntPtr providerName,
+                          out IntPtr logicalChannelNumber,
+                          out int serviceType,
+                          out int videoStreamCount,
+                          out int audioStreamCount,
+                          [MarshalAs(UnmanagedType.I1)] out bool isHighDefinition,
+                          [MarshalAs(UnmanagedType.I1)] out bool isEncrypted,
+                          [MarshalAs(UnmanagedType.I1)] out bool isRunning,
+                          out int pmtPid,
+                          out int previousOriginalNetworkId,
+                          out int previousTransportStreamId,
+                          out int previousServiceId,
+                          out int networkIdCount,
+                          out IntPtr networkIds,
+                          out int bouquetIdCount,
+                          out IntPtr bouquetIds,
+                          out int languageCount,
+                          out IntPtr languages,
+                          out int availableInCellCount,
+                          out IntPtr availableInCells,
+                          out int unavailableInCellCount,
+                          out IntPtr unavailableInCells,
+                          out int targetRegionCount,
+                          out IntPtr targetRegions,
+                          out int availableInCountryCount,
+                          out IntPtr availableInCountries,
+                          out int unavailableInCountryCount,
+                          out IntPtr unavailableInCountries);
 
     /// <summary>
-    /// Sets the channel scan callback
+    /// Start scanning for network information in the stream that is currently being received.
     /// </summary>
-    /// <param name="callback">The callback</param>
-    /// <returns></returns>
+    /// <remarks>
+    /// Network scanning is currently only supported for DVB streams as other broadcast standards
+    /// don't seem to carry in-band network information.
+    /// </remarks>
+    /// <returns>an HRESULT indicating whether scanning is successfully started</returns>
     [PreserveSig]
-    int SetCallBack(IChannelScanCallback callback);
-
-
-    /// <summary>
-    /// Start the nit scan
-    /// </summary>
-    /// <returns></returns>
-    [PreserveSig]
-    int ScanNIT();
+    int ScanNetwork();
 
     /// <summary>
-    /// Stops the nit scan
+    /// Stop network scanning.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="isOtherMuxServiceInfoAvailable">An indicator for whether service information
+    ///   for the multiplexes identified by the scanner is available. If information is available,
+    ///   it is not necessary to scan each individual multiplex, which is a huge timesaver.</param>
+    /// <returns>an HRESULT indicating whether scanning is successfully stopped</returns>
     [PreserveSig]
-    int StopNIT();
+    int StopNetworkScan(out bool isOtherMuxServiceInfoAvailable);
 
     /// <summary>
-    /// Gets the number of nit transponders
+    /// Get the number of multiplexes found during the most recently completed scan.
     /// </summary>
-    /// <param name="transponderCount">Number of transponders</param>
-    /// <returns></returns>
+    /// <param name="multiplexCount">The number of multiplexes found by the scanner.</param>
+    /// <returns>an HRESULT indicating whether the multiplex count was successfully retrieved</returns>
     [PreserveSig]
-    int GetNITCount(out int transponderCount);
+    int GetMultiplexCount(out int multiplexCount);
 
     /// <summary>
-    /// Gets the nit channel
+    /// Retrieve the details for a specific multiplex from the scanner.
     /// </summary>
-    /// <param name="channel">The channel id</param>
-    /// <param name="chType">The channel type</param>
-    /// <param name="frequency">The frequence</param>
-    /// <param name="polarisation">The polarisation</param>
-    /// <param name="modulation">The modulation</param>
-    /// <param name="symbolrate">The symbolrate</param>
-    /// <param name="bandwidth">The bandwith</param>
-    /// <param name="fecInner">The fec inner</param>
-    /// <param name="networkName">The network names</param>
-    /// <param name="rollOff">rolloff (S2 specific)</param>
-    /// <returns></returns>
+    /// <param name="index">The multiplex index. The value of this parameter should be in the range 0..[GetMultiplexCount() - 1] (inclusive).</param>
+    /// <param name="originalNetworkId">The multiplex's network ID.</param>
+    /// <param name="transportStreamId">The multiplex's transport stream ID.</param>
+    /// <param name="type">The multiplex type (eg. cable, satellite, terrestrial), as per the TV database tuning detail type.</param>
+    /// <param name="frequency">The multiplex frequency, in kHz.</param>
+    /// <param name="polarisation">The multiplex polarisation. Only applicable for DVB-S/2 multiplexes.</param>
+    /// <param name="modulation">The multiplex modulation scheme. Only applicable for DVB-S/2 and DVB-C multiplexes.</param>
+    /// <param name="symbolRate">The multiplex symbol rate, in ks/s. Only applicable for DVB-S/2 and DVB-C multiplexes.</param>
+    /// <param name="bandwidth">The multiplex bandwith, in MHz. Only applicable for DVB-T multiplexes.</param>
+    /// <param name="innerFecRate">The multiplex inner FEC rate. Only applicable for DVB-S/2 multiplexes.</param>
+    /// <param name="rollOff">The multiplex roll-off parameter. Only applicable for DVB-S2 multiplexes.</param>
+    /// <param name="longitude">The longitude of the geostationary satellite that the multiplex is transmitted from, in
+    ///     tenths of a degree. Positive longitude values specify East position; negative longitude values specify West
+    ///     position. Only applicable for DVB-S/S2 multiplexes.</param>
+    /// <param name="cellId">The cell ID of the multiplex transmitter. Only applicable for DVB-T/T2 multiplexes.</param>
+    /// <param name="cellIdExtension">The cell ID extension of the multiplex transmitter. Only applicable for DVB-T/T2 multiplexes.</param>
+    /// <param name="plpId">The physical layer pipe ID of multiplex. Only applicable for DVB-S2 and DVB-T2 multiplexes.</param>
+    /// <returns>an HRESULT indicating whether the multiplex details were successfully retrieved</returns>
     [PreserveSig]
-    int GetNITChannel(int channel, out int chType, out int frequency, out int polarisation, out int modulation,
-                      out int symbolrate, out int bandwidth, out int fecInner, out int rollOff, out IntPtr networkName);
+    int GetMultiplexDetail(int index,
+                            out int originalNetworkId,
+                            out int transportStreamId,
+                            out int type,
+                            out int frequency,
+                            out int polarisation,
+                            out int modulation,
+                            out int symbolRate,
+                            out int bandwidth,
+                            out int innerFecRate,
+                            out int rollOff,
+                            out int longitude,
+                            out int cellId,
+                            out int cellIdExtension,
+                            out int plpId);
+
+    /// <summary>
+    /// Retrieve the name of a specific target region.
+    /// </summary>
+    /// <param name="targetRegionId">The region identifier.</param>
+    /// <param name="name">The name of the region.</param>
+    /// <returns>an HRESULT indicating whether the target region name was successfully retrieved</returns>
+    [PreserveSig]
+    int GetTargetRegionName(Int64 targetRegionId, out IntPtr name);
+
+    /// <summary>
+    /// Retrieve the name of a specific bouquet.
+    /// </summary>
+    /// <param name="bouquetId">The bouquet identifier.</param>
+    /// <param name="name">The name of the bouquet.</param>
+    /// <returns>an HRESULT indicating whether the bouquet name was successfully retrieved</returns>
+    [PreserveSig]
+    int GetBouquetName(int bouquetId, out IntPtr name);
+
+    /// <summary>
+    /// Retrieve the name of a specific network.
+    /// </summary>
+    /// <param name="networkId">The network identifier.</param>
+    /// <param name="name">The name of the network.</param>
+    /// <returns>an HRESULT indicating whether the network name was successfully retrieved</returns>
+    [PreserveSig]
+    int GetNetworkName(int networkId, out IntPtr name);
   }
 }

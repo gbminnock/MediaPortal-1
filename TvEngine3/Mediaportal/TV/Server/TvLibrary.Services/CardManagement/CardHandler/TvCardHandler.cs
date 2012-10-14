@@ -26,6 +26,7 @@ using Mediaportal.TV.Server.TVLibrary.Implementations.DVB.Graphs;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 using Mediaportal.TV.Server.TVService.Interfaces.CardHandler;
 
@@ -43,8 +44,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     private readonly DisEqcManagement _disEqcManagement;
     private readonly TeletextManagement _teletext;
     private readonly ChannelScanning _scanner;
-    private readonly EpgGrabbing _epgGrabbing;
-    private readonly AudioStreams _audioStreams;
+    private readonly EpgGrabbing _epgGrabbing;    
     private readonly Recorder _recorder;
     private readonly TimeShifter _timerShifter;
     private readonly CardTuner _tuner;
@@ -68,7 +68,6 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       _teletext = new TeletextManagement(this);
       _scanner = new ChannelScanning(this);
       _epgGrabbing = new EpgGrabbing(this);
-      _audioStreams = new AudioStreams(this);
       _tuner = new CardTuner(this);
       _recorder = new Recorder(this);
       _timerShifter = new TimeShifter(this);      
@@ -82,16 +81,16 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     {
       get
       {
-        // is card a dvb card? then expose it's ConditionalAccess here
-        TvCardDvbBase dvbCard = _card as TvCardDvbBase;
-        if (dvbCard != null)
+        ICiMenuActions menuInterface = _card.CaMenuInterface;
+        if (menuInterface == null)
         {
-          if (dvbCard.HasCA && dvbCard.ConditionalAccess.CiMenu != null && dvbCard.ConditionalAccess.IsCamReady())
-            // only if cam is ready
-          {
-            _ciMenu = dvbCard.ConditionalAccess.CiMenu;
-            return true;
-          }
+          return false;
+        }
+        IConditionalAccessProvider caProvider = menuInterface as IConditionalAccessProvider;
+        if (caProvider.IsInterfaceReady())
+        {
+          _ciMenu = menuInterface;
+          return true;
         }
         return false;
       }
@@ -142,11 +141,6 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     public IEpgGrabbing Epg
     {
       get { return _epgGrabbing; }
-    }
-
-    public IAudioStreams Audio
-    {
-      get { return _audioStreams; }
     }
 
     public IRecorder Recorder
@@ -222,17 +216,16 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     }
 
     /// <summary>
-    /// Does the card have a CA module.
+    /// Does the device support conditional access?
     /// </summary>
-    /// <value>The number of channels decrypting.</value>
-    public bool HasCA
+    /// <value><c>true</c> if the device supports conditional access, otherwise <c>false</c></value>
+    public bool IsConditionalAccessSupported
     {
       get
       {       
-        return _card.HasCA;
+        return _card.IsConditionalAccessSupported;
       }
     }
-
 
     /// <summary>
     /// Returns the number of channels the card is currently decrypting
@@ -718,50 +711,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
     }
 
 
-    /// <summary>
-    /// Pauses the card.
-    /// </summary>
-    public void PauseCard()
-    {
-      try
-      {
-        if (_dbsCard.Enabled == false)
-        {
-          return;
-        }
-
-        if (_parkedUserManagement.HasAnyParkedUsers())
-        {
-          Log.Info("unable to Pausecard since there are parked channels");
-          return;
-        }
-
-        Log.Info("Pausecard");
-        //remove all subchannels, except for this user...
-        FreeAllSubChannels();
-        
-        if (Context != null)
-        {
-          _userManagement.Clear();
-        }
-
-        if (_card.SupportsPauseGraph)
-        {
-          _card.PauseGraph();
-        }
-        else
-        {
-          _card.StopGraph();
-        }
-      }
-      catch (ThreadAbortException)
-      {        
-      }
-      catch (Exception ex)
-      {
-        Log.Write(ex);
-      }
-    }
+    
 
    
 
@@ -792,7 +742,7 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
         
         _userManagement.Clear();
         
-        _card.StopGraph();
+        _card.Stop();
       }
       catch (ThreadAbortException)
       {       
@@ -812,29 +762,6 @@ namespace Mediaportal.TV.Server.TVLibrary.CardManagement.CardHandler
       }
 
     }
-
-    /// <summary>
-    /// Gets the current video stream.
-    /// </summary>
-    /// <returns></returns>
-    public IVideoStream GetCurrentVideoStream(string userName)
-    {
-      if (_dbsCard.Enabled == false)
-      {
-        return null;
-      }
-            
-      if (Context == null)
-      {
-        return null;
-      }
-      
-      ITvSubChannel subchannel = _card.GetSubChannel(_userManagement.GetTimeshiftingSubChannel(userName));
-      if (subchannel == null)
-      {
-        return null;
-      }
-      return subchannel.GetCurrentVideoStream;
-    }
+  
   }
 }

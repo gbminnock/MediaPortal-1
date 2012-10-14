@@ -67,7 +67,6 @@
     <Compile Include="CardManagement\CardAllocation\CardAllocationCache.cs" />
     <Compile Include="CardManagement\CardAllocation\ChannelStates.cs" />
     <Compile Include="CardManagement\CardAllocation\ICardAllocation.cs" />
-    <Compile Include="CardManagement\CardHandler\AudioStreams.cs" />
     <Compile Include="CardManagement\CardHandler\CardTuner.cs" />
     <Compile Include="CardManagement\CardHandler\ChannelScanning.cs" />
     <Compile Include="CardManagement\CardHandler\CleanTimeshiftFilesThread.cs" />

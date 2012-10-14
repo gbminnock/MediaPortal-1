@@ -121,7 +121,6 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
         map.IdCard = card.IdCard;        
         map.IdCardGroup = group.IdCardGroup;
         ServiceAgents.Instance.CardServiceAgent.SaveCardGroupMap(map);
-        card.Preload = false;        
         ServiceAgents.Instance.CardServiceAgent.SaveCard(card);
       }
       UpdateHybrids();
@@ -218,7 +217,7 @@ namespace Mediaportal.TV.Server.SetupTV.Sections
           //CAM and CAM limit don't apply to non-digital cards
           if (cardType.ToUpperInvariant().Contains("DVB") || cardType.ToUpperInvariant().Contains("ATSC"))
           {
-            if (card.CAM)
+            if (card.UseConditionalAccess)
             {
               item.SubItems.Add("Yes");
             }

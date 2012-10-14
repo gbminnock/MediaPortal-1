@@ -78,6 +78,7 @@
     <Compile Include="Entities\ProgramBLL.cs" />
     <Compile Include="Entities\ScheduleBLL.cs" />
     <Compile Include="LinqKit\PredicateBuilder.cs" />
+    <Compile Include="LnbTypeManagement.cs" />
     <Compile Include="ScheduleManagement.cs" />
     <Compile Include="RecordingManagement.cs" />
     <Compile Include="ProgramCategoryManagement.cs" />

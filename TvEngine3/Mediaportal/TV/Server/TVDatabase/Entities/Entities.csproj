@@ -107,6 +107,7 @@
       <SubType>
       </SubType>
     </Compile>
+    <Compile Include="LnbTypePartial.cs" />
     <Compile Include="DisEqcMotor.cs">
       <DependentUpon>Model.tt</DependentUpon>
       <SubType>
@@ -152,6 +153,11 @@
       </SubType>
     </Compile>
     <Compile Include="KeywordMap.cs">
+      <DependentUpon>Model.tt</DependentUpon>
+      <SubType>
+      </SubType>
+    </Compile>
+    <Compile Include="LnbType.cs">
       <DependentUpon>Model.tt</DependentUpon>
       <SubType>
       </SubType>

@@ -19,6 +19,7 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
 {
     [DataContract(IsReference = true)]
     [KnownType(typeof(Channel))]
+    [KnownType(typeof(LnbType))]
     public partial class TuningDetail: IObjectWithChangeTracker, INotifyPropertyChanged
     {
         #region Primitive Properties
@@ -291,21 +292,6 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         private int _diSEqC;
     
         [DataMember]
-        public int SwitchingFrequency
-        {
-            get { return _switchingFrequency; }
-            set
-            {
-                if (_switchingFrequency != value)
-                {
-                    _switchingFrequency = value;
-                    OnPropertyChanged("SwitchingFrequency");
-                }
-            }
-        }
-        private int _switchingFrequency;
-    
-        [DataMember]
         public int Bandwidth
         {
             get { return _bandwidth; }
@@ -529,6 +515,29 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
             }
         }
         private int _mediaType;
+    
+        [DataMember]
+        public int IdLnbType
+        {
+            get { return _idLnbType; }
+            set
+            {
+                if (_idLnbType != value)
+                {
+                    ChangeTracker.RecordOriginalValue("IdLnbType", _idLnbType);
+                    if (!IsDeserializing)
+                    {
+                        if (LnbType != null && LnbType.IdLnbType != value)
+                        {
+                            LnbType = null;
+                        }
+                    }
+                    _idLnbType = value;
+                    OnPropertyChanged("IdLnbType");
+                }
+            }
+        }
+        private int _idLnbType;
 
         #endregion
         #region Navigation Properties
@@ -549,6 +558,23 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
             }
         }
         private Channel _channel;
+    
+        [DataMember]
+        public LnbType LnbType
+        {
+            get { return _lnbType; }
+            set
+            {
+                if (!ReferenceEquals(_lnbType, value))
+                {
+                    var previousValue = _lnbType;
+                    _lnbType = value;
+                    FixupLnbType(previousValue);
+                    OnNavigationPropertyChanged("LnbType");
+                }
+            }
+        }
+        private LnbType _lnbType;
 
         #endregion
         #region ChangeTracking
@@ -639,6 +665,7 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
         protected virtual void ClearNavigationProperties()
         {
             Channel = null;
+            LnbType = null;
         }
 
         #endregion
@@ -679,6 +706,45 @@ namespace Mediaportal.TV.Server.TVDatabase.Entities
                 if (Channel != null && !Channel.ChangeTracker.ChangeTrackingEnabled)
                 {
                     Channel.StartTracking();
+                }
+            }
+        }
+    
+        private void FixupLnbType(LnbType previousValue)
+        {
+            if (IsDeserializing)
+            {
+                return;
+            }
+    
+            if (previousValue != null && previousValue.TuningDetails.Contains(this))
+            {
+                previousValue.TuningDetails.Remove(this);
+            }
+    
+            if (LnbType != null)
+            {
+                if (!LnbType.TuningDetails.Contains(this))
+                {
+                    LnbType.TuningDetails.Add(this);
+                }
+    
+                IdLnbType = LnbType.IdLnbType;
+            }
+            if (ChangeTracker.ChangeTrackingEnabled)
+            {
+                if (ChangeTracker.OriginalValues.ContainsKey("LnbType")
+                    && (ChangeTracker.OriginalValues["LnbType"] == LnbType))
+                {
+                    ChangeTracker.OriginalValues.Remove("LnbType");
+                }
+                else
+                {
+                    ChangeTracker.RecordOriginalValue("LnbType", previousValue);
+                }
+                if (LnbType != null && !LnbType.ChangeTracker.ChangeTrackingEnabled)
+                {
+                    LnbType.StartTracking();
                 }
             }
         }

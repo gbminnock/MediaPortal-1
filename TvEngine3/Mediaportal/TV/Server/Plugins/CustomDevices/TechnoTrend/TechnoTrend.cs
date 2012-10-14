@@ -1962,7 +1962,7 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.TechnoTrend
     /// <param name="pmt">The programme map table for the service.</param>
     /// <param name="cat">The conditional access table for the service.</param>
     /// <returns><c>true</c> if the command is successfully sent, otherwise <c>false</c></returns>
-    public bool SendCommand(IChannel channel, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtListManagementAction listAction, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtCommand command, Mediaportal.TV.Server.TVLibrary.Interfaces.Pmt pmt, Mediaportal.TV.Server.TVLibrary.Interfaces.Cat cat)
+    public bool SendCommand(IChannel channel, CaPmtListManagementAction listAction, CaPmtCommand command, Pmt pmt, Cat cat)
     {
       Log.Debug("TechnoTrend: send conditional access command, list action = {0}, command = {1}", listAction, command);
 

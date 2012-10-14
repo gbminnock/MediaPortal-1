@@ -463,6 +463,31 @@ ${MementoSection} "MediaPortal TV Server" SecServer
   File "${git_TVServer}\Server\Plugins\WebEPG\WebEPG\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.WebEPG.dll"
   File "${git_TVServer}\Server\Plugins\WebEPG\WebEPGPlugin\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.WebEPGImport.dll"
   
+    ; CustomDevice Plugin Directory
+  SetOutPath "$INSTDIR\Plugins\CustomDevices"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Anysee\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Anysee.dll" 
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Conexant\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Conexant.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\DigitalDevices\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\DigitalEverywhere\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.DigitalEverywhere.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\DvbSky\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.DvbSky.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Geniatech\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Geniatech.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Genpix\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Genpix.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\GenpixOpenSource\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.GenpixOpenSource.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Hauppauge\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Hauppauge.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Knc\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Knc.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\MdPlugin\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.MdPlugin.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Microsoft\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Microsoft.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\NetUp\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.NetUp.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Omicom\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Omicom.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Prof\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Prof.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\ProfUsb\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.ProfUsb.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\SmarDtvUsbCi\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\TechnoTrend\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.TechnoTrend.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\TeVii\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.TeVii.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Turbosight\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Turbosight.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\Twinhan\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Twinhan.dll"
+  File "${git_TVServer}\Server\Plugins\CustomDevices\ViXS\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.ViXS.dll"
+  
     ; Rest of Files
   SetOutPath "${SETUP_TV_FOLDER}"
   File "${git_Common_MP_TVE3}\DirectShowLib\bin\${BUILD_TYPE}\DirectShowLib.dll"
@@ -881,7 +906,7 @@ ${MementoSection} "MediaPortal TV Client plugin" SecClient
   File "${git_TVServer}\Server\Plugins\WebEPG\WebEPGPlugin\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.WebEPGImport.dll"
 
   ; CustomDevice Plugin Directory
-  SetOutPath "$INSTDIR\Plugins\CustomDevices"
+  SetOutPath "${SETUP_TV_FOLDER}\Plugins\CustomDevices"
   File "${git_TVServer}\Server\Plugins\CustomDevices\Anysee\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Anysee.dll" 
   File "${git_TVServer}\Server\Plugins\CustomDevices\Conexant\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Conexant.dll"
   File "${git_TVServer}\Server\Plugins\CustomDevices\DigitalDevices\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices.dll"
@@ -904,6 +929,15 @@ ${MementoSection} "MediaPortal TV Client plugin" SecClient
   File "${git_TVServer}\Server\Plugins\CustomDevices\Turbosight\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Turbosight.dll"
   File "${git_TVServer}\Server\Plugins\CustomDevices\Twinhan\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.Twinhan.dll"
   File "${git_TVServer}\Server\Plugins\CustomDevices\ViXS\bin\${BUILD_TYPE}\Mediaportal.TV.Server.Plugins.CustomDevices.ViXS.dll"
+  
+  ; CustomDevice plugin 3rd party resource assemblies
+  SetOutPath "${SETUP_TV_FOLDER}\Plugins\CustomDevices\Resources"
+  File "${TVSERVER.BASE}\CIAPI.dll"
+  File "${TVSERVER.BASE}\KNCBDACTRL.dll"
+  File "${TVSERVER.BASE}\TbsCIapi.dll"
+  File "${TVSERVER.BASE}\tevii.dll"
+  File "${TVSERVER.BASE}\ttBdaDrvApi_Dll.dll"
+  File "${TVSERVER.BASE}\ttdvbacc.dll"
 
   #---------------------------------------------------------------------------
   # FILTER REGISTRATION       for TVClient

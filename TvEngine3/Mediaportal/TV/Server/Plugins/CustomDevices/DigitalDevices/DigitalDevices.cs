@@ -789,7 +789,7 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices
     /// <summary>
     /// Start this TV Server plugin.
     /// </summary>
-    public void Start(IControllerService controller)
+    public void Start(IInternalControllerService controllerService)
     {
     }
 

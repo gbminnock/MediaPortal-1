@@ -26,6 +26,7 @@ using DirectShowLib;
 using Mediaportal.TV.Server.Plugins.Base.Interfaces;
 using Mediaportal.TV.Server.TVControl.Interfaces.Services;
 using Mediaportal.TV.Server.TVDatabase.Entities;
+using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
 using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
@@ -291,8 +292,7 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
       // products (we don't prevent explicitly prevent this). The TV Server plugin allows each OEM CI product
       // to be linked to a single tuner. Here we need to know whether this tuner (ie. the one associated with
       // the tuner filter and tuner device path) is currently linked to any of the products.
-      TvBusinessLayer layer = new TvBusinessLayer();
-      Card tuner = layer.GetCardByDevicePath(tunerDevicePath);
+      Card tuner = CardManagement.GetCardByDevicePath(tunerDevicePath);
       if (tuner == null)
       {
         Log.Debug("SmarDTV USB CI: tuner device ID not found in database");
@@ -303,7 +303,7 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
       ReadOnlyCollection<SmarDtvUsbCiProduct> productList = SmarDtvUsbCiProducts.GetProductList();
       foreach (SmarDtvUsbCiProduct p in productList)
       {
-        if (!layer.GetSetting(p.DbSettingName, "-1").Value.Equals(tunerIdAsString))
+        if (SettingsManagement.GetSetting(p.DbSettingName, "-1").Value.Equals(tunerIdAsString))
         {
           continue;
         }
@@ -503,7 +503,7 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
     /// <summary>
     /// Start this TV Server plugin.
     /// </summary>
-    public void Start(IControllerService controller)
+    public void Start(IInternalControllerService controllerService)
     {
     }
 

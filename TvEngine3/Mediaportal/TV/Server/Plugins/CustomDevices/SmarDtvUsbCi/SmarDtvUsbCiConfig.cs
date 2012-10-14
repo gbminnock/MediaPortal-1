@@ -18,6 +18,7 @@
 
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
@@ -26,9 +27,12 @@ using DirectShowLib;
 using Mediaportal.TV.Server.SetupControls;
 using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
 using Mediaportal.TV.Server.TVControl;
+using Mediaportal.TV.Server.TVControl.Interfaces.Services;
 using Mediaportal.TV.Server.TVDatabase.Entities;
+using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using Mediaportal.TV.Server.TVService.ServiceAgents;
 
 namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
 {
@@ -37,6 +41,10 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
     private ReadOnlyCollection<SmarDtvUsbCiProduct> _products = null;
     private MPComboBox[] _tunerSelections = null;
     private Label[] _installStateLabels = null;
+
+    private readonly ISettingService _settingServiceAgent = ServiceAgents.Instance.SettingServiceAgent;
+    private readonly ICardService _cardServiceAgent = ServiceAgents.Instance.CardServiceAgent;
+    private readonly IControllerService _controllerServiceAgent = ServiceAgents.Instance.ControllerServiceAgent;
 
     public SmarDtvUsbCiConfig()
       : this("SmarDTV USB CI")
@@ -63,10 +71,8 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
         if (_tunerSelections[i].Enabled && selectedTuner != null)
         {
           Log.Debug("  {0} linked to tuner {1} ({2})", _products[i].ProductName, selectedTuner.IdCard, selectedTuner.Name);
-          TvBusinessLayer layer = new TvBusinessLayer();
-          Setting setting = layer.GetSetting(_products[i].DbSettingName, "-1");
-          setting.Value = selectedTuner.IdCard.ToString();
-          setting.Persist();
+          _settingServiceAgent.SaveSetting("digitalDevicesCiDevicePath" + i, selectedTuner.IdCard.ToString());
+
         }
       }
       base.SaveSettings();
@@ -75,22 +81,21 @@ namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
     public override void OnSectionActivated()
     {
       Log.Debug("SmarDTV USB CI config: activated");
-      IList<Card> dbTuners = Card.ListAll();
+      IList<Card> dbTuners = _cardServiceAgent.ListAllCards();
       DsDevice[] captureDevices = DsDevice.GetDevicesOfCat(FilterCategory.AMKSCapture);
 
-      TvBusinessLayer layer = new TvBusinessLayer();
       for (int i = 0; i < _products.Count; i++)
       {
         Log.Debug("SmarDTV USB CI config: product {0}...", _products[i].ProductName);
 
         // Populate the tuner selection fields and set current values.
-        Setting setting = layer.GetSetting(_products[i].DbSettingName, "-1");
+        Setting setting = _settingServiceAgent.GetSettingWithDefaultValue(_products[i].DbSettingName, "-1");
         _tunerSelections[i].Items.Clear();
         _tunerSelections[i].SelectedIndex = -1;
 
         foreach (Card tuner in dbTuners)
         {
-          CardType tunerType = RemoteControl.Instance.Type(tuner.IdCard);
+          CardType tunerType = _controllerServiceAgent.Type(tuner.IdCard);
           if (tunerType == CardType.Analog || tunerType == CardType.RadioWebStream || tunerType == CardType.Unknown)
           {
             continue;

@@ -22,9 +22,8 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
-using SmarDtvUsbCi;
 
-namespace SetupTv.Sections
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
 {
   partial class SmarDtvUsbCiConfig
   {

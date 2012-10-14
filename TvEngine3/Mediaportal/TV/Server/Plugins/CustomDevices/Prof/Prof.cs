@@ -29,7 +29,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Prof
 {
   /// <summary>
   /// A class for handling DiSEqC for Prof devices, including clones from Satrade and Omicom. The interface

@@ -21,7 +21,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using DirectShowLib;
 using DirectShowLib.BDA;
@@ -32,7 +31,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Twinhan
 {
   /// <summary>
   /// A class for handling conditional access and DiSEqC for Twinhan devices, including clones from TerraTec,

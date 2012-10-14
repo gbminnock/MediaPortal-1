@@ -28,12 +28,12 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Hauppauge
 {
   /// <summary>
   /// A class for handling DiSEqC and DVB-S2 tuning for Hauppauge devices.
   /// </summary>
-  public class Hauppauge : Conexant
+  public class Hauppauge : Conexant.Conexant
   {
     #region enums
 

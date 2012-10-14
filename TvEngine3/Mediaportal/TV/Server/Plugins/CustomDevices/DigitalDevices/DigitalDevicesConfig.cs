@@ -20,21 +20,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using DigitalDevices;
 using DirectShowLib;
 using Mediaportal.TV.Server.SetupControls;
 using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
 using Mediaportal.TV.Server.TVDatabase.Entities;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-
-namespace SetupTv.Sections
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices
 {
   public partial class DigitalDevicesConfig : SectionSettings
   {

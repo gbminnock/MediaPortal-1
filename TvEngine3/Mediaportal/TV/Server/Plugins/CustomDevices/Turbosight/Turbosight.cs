@@ -34,7 +34,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Turbosight
 {
   /// <summary>
   /// A class for handling conditional access and DiSEqC for Turbosight tuners. Note that some Turbosight drivers

@@ -8,8 +8,8 @@
     <ProjectGuid>{4345B8A4-5656-4C50-8457-EDCF761E72E6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Microsoft</RootNamespace>
-    <AssemblyName>Microsoft</AssemblyName>
+    <RootNamespace>Mediaportal.TV.Server.Plugins.CustomDevices.Microsoft</RootNamespace>
+    <AssemblyName>Mediaportal.TV.Server.Plugins.CustomDevices.Microsoft</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

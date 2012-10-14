@@ -33,7 +33,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.MdPlugin
 {
   /// <summary>
   /// A class for handling conditional access with softCAM plugins that support Agarwal's multi-decrypt

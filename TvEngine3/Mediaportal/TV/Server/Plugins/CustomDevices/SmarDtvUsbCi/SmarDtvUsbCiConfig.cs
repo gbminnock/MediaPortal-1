@@ -18,13 +18,9 @@
 
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using DirectShowLib;
 using Mediaportal.TV.Server.SetupControls;
@@ -33,10 +29,8 @@ using Mediaportal.TV.Server.TVControl;
 using Mediaportal.TV.Server.TVDatabase.Entities;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using SetupTv;
-using SmarDtvUsbCi;
 
-namespace SetupTv.Sections
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
 {
   public partial class SmarDtvUsbCiConfig : SectionSettings
   {

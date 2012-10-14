@@ -8,8 +8,8 @@
     <ProjectGuid>{9E7599AD-228B-4636-8526-C3BB6FFBA473}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Hauppauge</RootNamespace>
-    <AssemblyName>Hauppauge</AssemblyName>
+    <RootNamespace>Mediaportal.TV.Server.Plugins.CustomDevices.Hauppauge</RootNamespace>
+    <AssemblyName>Mediaportal.TV.Server.Plugins.CustomDevices.Hauppauge</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

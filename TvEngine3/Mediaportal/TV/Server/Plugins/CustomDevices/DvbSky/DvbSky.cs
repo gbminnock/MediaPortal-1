@@ -19,13 +19,12 @@
 #endregion
 
 using System;
-using System.Runtime.InteropServices;
 using DirectShowLib;
 using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.DvbSky
 {
   /// <summary>
   /// A class for handling conditional access and DiSEqC for DVBSky devices. Actually with the exception of
@@ -33,7 +32,7 @@ namespace TvEngine
   /// interface, and their DiSEqC interface is identical to the Conexant interface. C# doesn't support
   /// multiple inheritence so we inherit from NetUP and use an internal Conexant instance.
   /// </summary>
-  public class DvbSky : NetUp
+  public class DvbSky : NetUp.NetUp
   {
     #region enums
 
@@ -67,7 +66,7 @@ namespace TvEngine
 
     private bool _isDvbSky = false;
 
-    private Conexant _conexantInterface = null;
+    private Conexant.Conexant _conexantInterface = null;
 
     #endregion
 
@@ -126,7 +125,7 @@ namespace TvEngine
       }
 
       Log.Debug("DVBSky: checking base Conexant interface support");
-      _conexantInterface = new Conexant(DvbSkyGeneralBdaExtensionPropertySet);
+      _conexantInterface = new Conexant.Conexant(DvbSkyGeneralBdaExtensionPropertySet);
       if (!_conexantInterface.Initialise(tunerFilter, tunerType, tunerDevicePath))
       {
         Log.Debug("DVBSky: base Conexant interface not supported");

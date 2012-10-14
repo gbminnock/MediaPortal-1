@@ -29,14 +29,14 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.ProfUsb
 {
   /// <summary>
   /// This API was originally used by Turbosight for their QBOX series devices. Turbosight moved to a unified
   /// API for their PCIe/PCI and USB devices. This class stays to support the QBOX clones from Prof and
   /// Omicom which will not receive updated drivers.
   /// </summary>
-  public class ProfUsb : Prof, ICustomTuner
+  public class ProfUsb : Prof.Prof, ICustomTuner
   {
     #region enums
 

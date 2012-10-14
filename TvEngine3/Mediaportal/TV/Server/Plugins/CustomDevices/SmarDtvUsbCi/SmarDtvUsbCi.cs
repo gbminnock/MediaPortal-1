@@ -31,10 +31,8 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
-using SmarDtvUsbCi;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.SmarDtvUsbCi
 {
   /// <summary>
   /// A class for handling conditional access with the Hauppauge WinTV-CI and TerraTec USB CI. Both devices are
@@ -61,7 +59,7 @@ namespace TvEngine
     /// <param name="ciFilter">The CI filter.</param>
     /// <param name="state">The new state of the slot.</param>
     /// <returns>an HRESULT indicating whether the state change was successfully handled</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnSmarDtvUsbCiState(IBaseFilter ciFilter, SmarDtvCiState state);
 
     /// <summary>
@@ -70,7 +68,7 @@ namespace TvEngine
     /// <param name="ciFilter">The CI filter.</param>
     /// <param name="info">A buffer containing the application information.</param>
     /// <returns>an HRESULT indicating whether the application information was successfully processed</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnSmarDtvUsbCiApplicationInfo(IBaseFilter ciFilter, IntPtr info);
 
     /// <summary>
@@ -78,7 +76,7 @@ namespace TvEngine
     /// </summary>
     /// <param name="ciFilter">The CI filter.</param>
     /// <returns>an HRESULT indicating whether the MMI session was successfully closed</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnSmarDtvUsbCiCloseMmi(IBaseFilter ciFilter);
 
     /// <summary>
@@ -88,7 +86,7 @@ namespace TvEngine
     /// <param name="apduLength">The length of the APDU buffer in bytes.</param>
     /// <param name="apdu">A buffer containing the APDU.</param>
     /// <returns>an HRESULT indicating whether the APDU was successfully processed</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnSmarDtvUsbCiApdu(IBaseFilter ciFilter, Int32 apduLength, IntPtr apdu);
 
     #endregion
@@ -499,7 +497,7 @@ namespace TvEngine
     /// </summary>
     public Mediaportal.TV.Server.SetupControls.SectionSettings Setup
     {
-      get { return new SetupTv.Sections.SmarDtvUsbCiConfig(); }
+      get { return new SmarDtvUsbCiConfig(); }
     }
 
     /// <summary>

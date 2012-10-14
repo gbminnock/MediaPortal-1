@@ -21,11 +21,10 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 using DirectShowLib;
 using Mediaportal.TV.Server.TVDatabase.Entities;
 
-namespace DigitalDevices
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices
 {
   /// <summary>
   /// A struct that is capable of holding the relevant details for a Digital Devices CI slot.

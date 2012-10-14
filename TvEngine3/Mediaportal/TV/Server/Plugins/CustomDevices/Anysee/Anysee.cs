@@ -30,10 +30,8 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
-using TvLibrary;
 
-
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Anysee
 {
   /// <summary>
   /// A class for handling conditional access and DiSEqC for Anysee tuners. Smart card slots are not
@@ -1084,7 +1082,7 @@ namespace TvEngine
     /// <param name="state">The new CI state.</param>
     /// <param name="message">A short description of the CI state.</param>
     /// <returns>an HRESULT to indicate whether the state change was successfully handled</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnAnyseeCiState(Int32 slotIndex, AnyseeCiState state, [MarshalAs(UnmanagedType.LPStr)] String message);
 
     /// <summary>
@@ -1093,7 +1091,7 @@ namespace TvEngine
     /// <param name="slotIndex">The index of the CI slot containing the CAM.</param>
     /// <param name="message">The message from the CAM.</param>
     /// <returns>an HRESULT to indicate whether the message was successfully processed</returns>
-    [UnmanagedFunctionPointerAttribute(CallingConvention.Cdecl)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate Int32 OnAnyseeMmiMessage(Int32 slotIndex, IntPtr message);
 
     #endregion

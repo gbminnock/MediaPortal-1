@@ -8,8 +8,8 @@
     <ProjectGuid>{AEEF96AB-0019-42A6-BED7-60C4DF42D94F}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MdPlugin</RootNamespace>
-    <AssemblyName>MdPlugin</AssemblyName>
+    <RootNamespace>Mediaportal.TV.Server.Plugins.CustomDevices.MdPlugin</RootNamespace>
+    <AssemblyName>Mediaportal.TV.Server.Plugins.CustomDevices.MdPlugin</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

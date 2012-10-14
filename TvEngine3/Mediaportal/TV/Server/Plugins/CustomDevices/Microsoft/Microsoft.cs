@@ -30,7 +30,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using System.Collections.Generic;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.Microsoft
 {
   /// <summary>
   /// This class provides a base implementation of PID filtering, DiSEqC and clear QAM tuning support

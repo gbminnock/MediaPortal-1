@@ -8,8 +8,8 @@
     <ProjectGuid>{4EA595FF-5FCD-4CE3-9338-2F91983E1962}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Anysee</RootNamespace>
-    <AssemblyName>Anysee</AssemblyName>
+    <RootNamespace>Mediaportal.TV.Server.Plugins.CustomDevices.Anysee</RootNamespace>
+    <AssemblyName>Mediaportal.TV.Server.Plugins.CustomDevices.Anysee</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

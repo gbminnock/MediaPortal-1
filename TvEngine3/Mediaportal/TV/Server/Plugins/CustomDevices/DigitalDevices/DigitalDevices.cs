@@ -21,9 +21,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Threading;
-using DigitalDevices;
 using DirectShowLib;
 using DirectShowLib.BDA;
 using Mediaportal.TV.Server.Plugins.Base.Interfaces;
@@ -35,7 +33,7 @@ using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
 using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.CustomDevices.DigitalDevices
 {
   /// <summary>
   /// A class for handling conditional access and DiSEqC for Digital Devices devices (and clones from Mystique).
@@ -785,7 +783,7 @@ namespace TvEngine
     /// </summary>
     public Mediaportal.TV.Server.SetupControls.SectionSettings Setup
     {
-      get { return new SetupTv.Sections.DigitalDevicesConfig(); }
+      get { return new DigitalDevicesConfig(); }
     }
 
     /// <summary>

@@ -24,10 +24,12 @@ using System.Runtime.InteropServices;
 using System.Text;
 using DirectShowLib;
 using DirectShowLib.BDA;
-using TvLibrary.Channels;
-using TvLibrary.Interfaces.Device;
-using TvLibrary.Log;
-using TvLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
 namespace TvEngine
 {

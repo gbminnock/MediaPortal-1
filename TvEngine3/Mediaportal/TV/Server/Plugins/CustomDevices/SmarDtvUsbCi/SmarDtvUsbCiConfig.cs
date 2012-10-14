@@ -27,13 +27,14 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using DirectShowLib;
-using MediaPortal.UserInterface.Controls;
+using Mediaportal.TV.Server.SetupControls;
+using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
+using Mediaportal.TV.Server.TVControl;
+using Mediaportal.TV.Server.TVDatabase.Entities;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 using SetupTv;
 using SmarDtvUsbCi;
-using TvControl;
-using TvDatabase;
-using TvLibrary.Interfaces;
-using TvLibrary.Log;
 
 namespace SetupTv.Sections
 {

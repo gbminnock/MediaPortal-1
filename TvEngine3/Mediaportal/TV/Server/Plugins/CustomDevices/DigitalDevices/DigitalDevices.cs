@@ -25,12 +25,15 @@ using System.Security;
 using System.Threading;
 using DigitalDevices;
 using DirectShowLib;
-using TvControl;
-using TvLibrary.Channels;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Device;
-using TvLibrary.Log;
 using DirectShowLib.BDA;
+using Mediaportal.TV.Server.Plugins.Base.Interfaces;
+using Mediaportal.TV.Server.TVControl.Interfaces.Services;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
 namespace TvEngine
 {
@@ -780,7 +783,7 @@ namespace TvEngine
     /// <summary>
     /// Get an instance of the configuration section for use in TV Server configuration (SetupTv).
     /// </summary>
-    public SetupTv.SectionSettings Setup
+    public Mediaportal.TV.Server.SetupControls.SectionSettings Setup
     {
       get { return new SetupTv.Sections.DigitalDevicesConfig(); }
     }
@@ -788,7 +791,7 @@ namespace TvEngine
     /// <summary>
     /// Start this TV Server plugin.
     /// </summary>
-    public void Start(IController controller)
+    public void Start(IControllerService controller)
     {
     }
 
@@ -991,7 +994,7 @@ namespace TvEngine
     /// <param name="pmt">The programme map table for the service.</param>
     /// <param name="cat">The conditional access table for the service.</param>
     /// <returns><c>true</c> if the command is successfully sent, otherwise <c>false</c></returns>
-    public bool SendCommand(IChannel channel, CaPmtListManagementAction listAction, CaPmtCommand command, Pmt pmt, Cat cat)
+    public bool SendCommand(IChannel channel, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtListManagementAction listAction, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtCommand command, Mediaportal.TV.Server.TVLibrary.Interfaces.Pmt pmt, Mediaportal.TV.Server.TVLibrary.Interfaces.Cat cat)
     {
       Log.Debug("Digital Devices: send conditional access command, list action = {0}, command = {1}", listAction, command);
 

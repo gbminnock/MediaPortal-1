@@ -21,10 +21,9 @@
 using System;
 using System.Runtime.InteropServices;
 using DirectShowLib;
-using TvLibrary.Channels;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Device;
-using TvLibrary.Log;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
 namespace TvEngine
 {

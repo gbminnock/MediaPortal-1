@@ -23,8 +23,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using DirectShowLib;
-using TvDatabase;
-using TvLibrary.Log;
+using Mediaportal.TV.Server.TVDatabase.Entities;
 
 namespace DigitalDevices
 {

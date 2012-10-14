@@ -24,10 +24,12 @@ using System.Runtime.InteropServices;
 using System.Text;
 using DirectShowLib;
 using DirectShowLib.BDA;
-using TvLibrary.Channels;
-using TvLibrary.Interfaces;
-using TvLibrary.Interfaces.Device;
-using TvLibrary.Log;
+using Mediaportal.TV.Server.TVLibrary.Implementations.Helper;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Interfaces.Device;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 
 namespace TvEngine
 {
@@ -1145,7 +1147,7 @@ namespace TvEngine
     /// <param name="pmt">The programme map table for the service.</param>
     /// <param name="cat">The conditional access table for the service.</param>
     /// <returns><c>true</c> if the command is successfully sent, otherwise <c>false</c></returns>
-    public bool SendCommand(IChannel channel, CaPmtListManagementAction listAction, CaPmtCommand command, Pmt pmt, Cat cat)
+    public bool SendCommand(IChannel channel, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtListManagementAction listAction, Mediaportal.TV.Server.TVLibrary.Interfaces.CaPmtCommand command, Mediaportal.TV.Server.TVLibrary.Interfaces.Pmt pmt, Mediaportal.TV.Server.TVLibrary.Interfaces.Cat cat)
     {
       Log.Debug("KNC: send conditional access command, list action = {0}, command = {1}", listAction, command);
 

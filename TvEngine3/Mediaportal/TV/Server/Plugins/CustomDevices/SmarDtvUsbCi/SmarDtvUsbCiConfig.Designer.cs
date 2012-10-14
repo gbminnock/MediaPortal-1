@@ -21,7 +21,7 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
-using MediaPortal.UserInterface.Controls;
+using Mediaportal.TV.Server.SetupControls.UserInterfaceControls;
 using SmarDtvUsbCi;
 
 namespace SetupTv.Sections

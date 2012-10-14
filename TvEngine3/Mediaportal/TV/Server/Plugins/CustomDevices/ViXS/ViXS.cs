@@ -20,8 +20,9 @@
 
 using System;
 using DirectShowLib;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
 using TvLibrary.Interfaces;
-using TvLibrary.Log;
 
 namespace TvEngine
 {

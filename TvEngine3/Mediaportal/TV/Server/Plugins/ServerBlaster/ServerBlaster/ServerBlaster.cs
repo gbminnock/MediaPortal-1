@@ -23,20 +23,25 @@ using System.IO;
 using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Collections;
-using TvLibrary.Log;
-using TvControl;
-using TvEngine.Events;
-using TvLibrary.Interfaces;
-using TvLibrary.Implementations;
-using TVEngine.Devices;
-using TvDatabase;
+using Castle.Core;
+using Mediaportal.TV.Server.Plugins.Base.Interfaces;
+using Mediaportal.TV.Server.SetupControls;
+using Mediaportal.TV.Server.TVControl.Events;
+using Mediaportal.TV.Server.TVControl.Interfaces.Events;
+using Mediaportal.TV.Server.TVControl.Interfaces.Services;
+using Mediaportal.TV.Server.TVDatabase.TVBusinessLayer;
+using Mediaportal.TV.Server.TVLibrary.Interfaces;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Implementations.Channels;
+using Mediaportal.TV.Server.TVLibrary.Interfaces.Logging;
+using MediaPortal.Common.Utils;
 
 // Modified to include Hauppauge Blasting
 // Uses code from prior MP versions for HCWIRBlaster
 // ralphy
 
-namespace TvEngine
+namespace Mediaportal.TV.Server.Plugins.ServerBlaster
 {
+  [Interceptor("PluginExceptionInterceptor")]
   public class ServerBlaster : AnalogChannel, ITvServerPlugin
   {
     #region properties
@@ -85,7 +90,7 @@ namespace TvEngine
 
     #region public methods
 
-    public void Start(IController controller)
+    public void Start(IInternalControllerService controllerService)
     {
       Log.WriteFile("ServerBlaster.Start Version {0}: Starting", _version);
       ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
@@ -119,9 +124,9 @@ namespace TvEngine
       Log.WriteFile("plugin: ServerBlaster.Stop stopped");
     }
 
-    public SetupTv.SectionSettings Setup
+    public SectionSettings Setup
     {
-      get { return new SetupTv.Sections.BlasterSetup(); }
+      get { return new BlasterSetup(); }
     }
 
     #endregion public implementation
@@ -184,15 +189,15 @@ namespace TvEngine
 
       try
       {
-        TvBusinessLayer layer = new TvBusinessLayer();
-        _sendSelect = (layer.GetSetting("SrvBlasterSendSelect", "False").Value == "True");
+        
+        _sendSelect = (SettingsManagement.GetSetting("SrvBlasterSendSelect", "False").Value == "True");
         _sleepTime = 100; //xmlreader.GetValueAsInt("ServerBlaster", "delay", 100);
         _sendPort = 1; //xmlreader.GetValueAsInt("ServerBlaster", "forceport", 1);
-        _blaster1Card = Convert.ToInt16(layer.GetSetting("SrvBlaster1Card", "0").Value);
-        _blaster2Card = Convert.ToInt16(layer.GetSetting("SrvBlaster2Card", "0").Value);
-        _deviceType = Convert.ToInt16(layer.GetSetting("SrvBlasterType", "0").Value);
-        _deviceSpeed = Convert.ToInt16(layer.GetSetting("SrvBlasterSpeed", "0").Value);
-        _advandeLogging = (layer.GetSetting("SrvBlasterLog", "False").Value == "True");
+        _blaster1Card = Convert.ToInt16(SettingsManagement.GetSetting("SrvBlaster1Card", "0").Value);
+        _blaster2Card = Convert.ToInt16(SettingsManagement.GetSetting("SrvBlaster2Card", "0").Value);
+        _deviceType = Convert.ToInt16(SettingsManagement.GetSetting("SrvBlasterType", "0").Value);
+        _deviceSpeed = Convert.ToInt16(SettingsManagement.GetSetting("SrvBlasterSpeed", "0").Value);
+        _advandeLogging = (SettingsManagement.GetSetting("SrvBlasterLog", "False").Value == "True");
         _sendPort = Math.Max(1, Math.Min(2, _sendPort));
 
         Log.WriteFile("ServerBlaster.LoadRemoteCodes: Default port {0}", _sendPort);
